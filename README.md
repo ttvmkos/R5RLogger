@@ -84,8 +84,7 @@ The logger uses customizable commands within the gamemodes .nut files.
     "LOG NAME", 
     "LOG DATA", 
     "ENCRYPTION BOOL", 
-    "DIRECTORY CHECK BOOL"
-);
+    "DIRECTORY CHECK BOOL");
 
 
 ________________________
