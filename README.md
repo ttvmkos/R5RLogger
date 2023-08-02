@@ -142,7 +142,7 @@ to see the results!
 
 
 #########################
-#	PARSER		#
+#	LICENSE		#
 #########################
 
 License
