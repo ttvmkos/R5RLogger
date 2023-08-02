@@ -31,7 +31,7 @@ ____8_888888888888_`8888888P'_________`8888888P'________`8888888P'____8_88888888
 #################################################################
 
 
-Version 1.1.0 only works with version 
+Version 1.0.0 only works with version 
 rc2.2.7 of the r5reloaded sdk.
 
 
