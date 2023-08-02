@@ -34,7 +34,7 @@
 #####################
 
 
-Version 1.1.0 only works with version 
+Version 1.0.0 only works with version 
 rc2.2.7 of the r5reloaded sdk.
 
 
