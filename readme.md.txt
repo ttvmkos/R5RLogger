@@ -20,9 +20,10 @@ ____8_888888888888_`8888888P'_________`8888888P'________`8888888P'____8_88888888
 					#########################
 					#	R5R LOGGER	#
 					#########################
-					#	Version 1.0.0	#
+					#	Version 1.0.3	#
 					#	By R5mkos	#
-					#	http://r5.mkos.pro	
+					#	https://r5r.dev	#	
+					#	BETA RELEASE	#
 					#	For: 2.2.7 R5R	#
 					#########################
 					#	<<<<<<<<<<	#
@@ -31,12 +32,12 @@ ____8_888888888888_`8888888P'_________`8888888P'________`8888888P'____8_88888888
 #################################################################
 
 
-Version 1.0.0 only works with version 
-rc2.2.7 of the r5reloaded sdk.
+Version 1.3 only works with 
+version rc2.2.7 of the r5reloaded sdk.
 
 
-You can download the latest version of 
-r5reloaded by visiting discord.gg/r5reloaded
+You can download this version here
+https://github.com/Mauler125/r5sdk/releases/tag/v2.2_rc7_tournaments
 
 
 1. Must have the core s3 apex legends game files.
@@ -71,6 +72,26 @@ DO NOT RENAME YOUR LOGS. Your log name is saved as your MATCH ID.
 !!! ONLY WORKS AS HOST !!!
 
 
+
+
+
+###########################################################################################
+
+  ADD PLAYLIST VAR BOOLS TO PLAYLISTS FILE (GLOBAL SETTINGS WILL DO)
+
+###########################################################################################
+
+
+	logging_enabled 								1
+	logging_encryption								1
+	logging_shipstats 								1
+
+
+
+###########################################################################################
+
+
+
 The logs can be found in:
 {r5reloaded}/platform/eventlogs
 
@@ -78,7 +99,6 @@ The logs can be found in:
 The logger uses customizable commands within the gamemodes .nut files.
 
     LogEvent(
-    "LOG NAME", 
     "LOG DATA", 
     "ENCRYPTION BOOL", 
     "DIRECTORY CHECK BOOL"
@@ -132,8 +152,7 @@ Expect a highscores page for verified servers running the logger.
 
 Upload your log to 
 
-www.r5.mkos.pro 
-
+https://r5r.dev
 to see the results!
 
 

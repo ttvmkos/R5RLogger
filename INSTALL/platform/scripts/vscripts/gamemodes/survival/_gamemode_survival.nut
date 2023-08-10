@@ -27,7 +27,6 @@ global function EnemyDownedDialogue
 global function TakingFireDialogue
 global function GetAllDroppableItems
 
-
 //float SERVER_SHUTDOWN_TIME_AFTER_FINISH = -1 // 1 or more to wait the specified number of seconds before executing, 0 to execute immediately, -1 or less to not execute
 
 
@@ -37,30 +36,38 @@ struct
 } file
 
 
-// The way data is passed to sqvm for integers is weird, so let's convert to an int in squirrel logic:
 
+	//startup logger settings
+	string function MatchID(){
 
-int function parseStr(string hex) {
-    int dec = 0;
-    int len = hex.len();
-    for (int i = 0; i < len; i++) {
-        string char = hex.slice(len - 1 - i, len - i);
-        int digit = "0123456789abcdef".find(char);
-        if (digit < 0) {
-            digit = "0123456789ABCDEF".find(char);
-        }
-        if (digit < 0) {
-            continue;
-        }
-        dec = (dec + digit * (1 << (4 * i))) % (1 << 28);  // Modulo operation
-    }
-    return dec;
-}
+			return SQMatchID().tostring();
+	}
 
+	bool logging_check = false;
+	bool enc = false; 
+	bool ship = false; 
 
-int function MatchID() {
-    return parseStr(getMatchID().tostring());
-}
+	void function logsettings() 
+	{
+		logging_check = false;
+		enc = false;
+		ship = false;
+
+		if (GetCurrentPlaylistVarBool("logging_enabled", false)) 
+		{
+			logging_check = true;
+
+			if (GetCurrentPlaylistVarBool("logging_encryption", false)) {
+				enc = true; 
+			}
+			if (GetCurrentPlaylistVarBool("logging_shipstats", false)) {
+				ship = true;
+			}
+		} else {
+			logging_check = false;
+		}
+	}
+	// end log setup
 
  
 
@@ -75,19 +82,37 @@ void function GamemodeSurvival_Init()
 	Sh_ArenaDeathField_Init()
 	SurvivalShip_Init()
 	
-	//mkos -start-log
-	setMatchID();
-	// Announce to server Everyone's match id
-	sqprint(format("||||||||||||||||||||||||||| Match started with MatchID: [ %d ] |||||||||||||||||||||||||||", MatchID()))
-	//Start of FIRST log should ALWAYS be passed with a 3rd parameter of true (mkdir check)
-	//4th Parameter = Encryption ; Must be enabled to qualify for event/tournament servers
 
-    LogEvent(
-    MatchID(), 
-    format("ENCRYPTION_ENABLED\n|| New match started at: %d\n|#MatchID:%d", GetUnixTimestamp(), MatchID()), 
-    true, 
-    true
-);
+
+
+	//start logging for solo br
+	logsettings();
+	if (logging_check)
+	{
+		
+		SetMatchID();
+		// Announce via server Everyone's match id
+		sqprint(format(":::::::::::::::: Match started with MatchID: [ %s ] ::::::::::::::::\n`", MatchID()));
+		LogEvent(
+		format("|| New match started at: %d\n|#MatchID:%s\n", GetUnixTimestamp(), MatchID()), 
+		true, // Start of match param 2 must be true to start logging thread
+		enc
+		);
+	} else {
+		sqprint("::: Logging disabled -- to enable set in playlists file --");
+		}
+
+
+	    array<entity> players = GetPlayerArray()
+
+    foreach (player in players)
+    {
+        // get platform UID and print it
+        string platformUID = player.GetPlatformUID()
+        sqprint(platformUID)
+    }
+
+	
 
 	FlagInit( "SpawnInDropship", false )
 	FlagInit( "PlaneDrop_Respawn_SetUseCallback", false )
@@ -372,16 +397,19 @@ void function Sequence_WinnerDetermined()
 		Remote_CallFunction_NonReplay( player, "ServerCallback_PlayMatchEndMusic" )
 		Remote_CallFunction_NonReplay( player, "ServerCallback_MatchEndAnnouncement", player.GetTeam() == GetWinningTeam(), GetWinningTeam() )
 		
-		//mkos: log winner placement - && denotes placement entry for parser
-		if( GetPlayerArray_Alive().len() > 0 )
-		{			
-			LogEvent(
-			MatchID(), 
-			format("&&,%s,1\n|| Game ended at %d - Player %s won! \n", player.GetPlayerName(),GetUnixTimestamp(),player.GetPlayerName()),
-			true, 
-			true
-			);
-		}
+		logsettings();
+		if (logging_check)
+		{
+			//mkos: log winner placement - && denotes placement entry for parser
+			if( GetPlayerArray_Alive().len() > 0 )
+			{			
+				LogEvent(
+				format("&&,%s,1,,%d\n|| Game ended at %d - Player %s won! \n", player.GetPlayerName(),GetUnixTimestamp(),GetUnixTimestamp(),player.GetPlayerName()),
+				false,
+				enc
+				);
+			}
+		} //end r5r.dev logging
 		
 
 		if( Bleedout_IsBleedingOut( player ) )
@@ -393,9 +421,20 @@ void function Sequence_WinnerDetermined()
 	}
 
 	thread SurvivalCommentary_HostAnnounce( eSurvivalCommentaryBucket.WINNER, 3.0 )
+	
+	logsettings();
+	if (logging_check)
+	{
+		if(ship == false){
+			sqprint("Shipping to stats server DISABLED -- check playlists file to enable --");
+		}
+		//stop logging r5r.dev
+		stopLogging(ship); //IMPORTANT - Can cause outofscope / memory issues if removed. 
+		// Set to true to send data to api, false to omit api connection.
+	}
 
 	wait 15.0
-
+	
 	thread Sequence_Epilogue()
 }
 
@@ -818,14 +857,17 @@ void function OnPlayerKilled( entity victim, entity attacker, var damageInfo )
 {
 
 	//mkos-log kill - check players real - ^^ denoted a kill for parser
-	if ( IsValid( victim ) && IsValid( attacker ) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker ) 
+	logsettings();
+	if (logging_check)
 	{
-		LogEvent(
-		MatchID(), 
-		format("^^,%s,1,%s\n", attacker.GetPlayerName(),GetNumTeamsRemaining().tostring()),
-		true, 
-		true
-		);
+		if ( IsValid( victim ) && IsValid( attacker ) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker ) 
+		{
+			LogEvent(
+			format("^^,%s,1,%s,%d\n", attacker.GetPlayerName(),GetNumTeamsRemaining().tostring(),GetUnixTimestamp()),
+			false,
+			true
+			);
+		}
 	}
 
 	if ( !IsValid( victim ) || !IsValid( attacker ) || !victim.IsPlayer() )
@@ -901,13 +943,16 @@ void function OnPlayerKilled( entity victim, entity attacker, var damageInfo )
 	if ( teamEliminated )
 	{
 		//mkos-add death placement log - && denotes placement in parser - line 861
-		var placeM = (GetNumTeamsRemaining() == 0) ? "0" : format("%d", GetNumTeamsRemaining());
-	 	LogEvent(
-		MatchID(), 
-		format("&&,%s,%d\n", victim.GetPlayerName(), placeM),
-		true, 
-		true
-		);
+		logsettings();
+		if (logging_check)
+		{
+			int placeM = (GetNumTeamsRemaining() == 0) ? 0 : GetNumTeamsRemaining();
+			LogEvent(
+			format("&&,%s,%d,%s,%d\n", victim.GetPlayerName(), placeM,victim.GetPlayerName(),GetUnixTimestamp()),
+			false,
+			true
+			);
+		}//end add placement SOLO BR
 	
 		thread PlayerStartSpectating( victim, attacker, true, victim.GetTeam(), false, attackerEHandle)	
 	} else
