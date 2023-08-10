@@ -164,7 +164,7 @@ Current to-do list:
 
     for solo br this will change to
 
-    &&,playername,1,timestamp,1,1,getplayerteam
+    &&,playername,1,timestamp,1,getplayerteam
 
  ##########################################################################################
 
