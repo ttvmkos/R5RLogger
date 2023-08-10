@@ -59,19 +59,8 @@ https://github.com/M1kep/R5ReloadedInstaller/releases/tag/v0.15.1
 4. Choose overwrite files.
 
 
-That's it! 
-The Logger is now installed.
 
-
-#########################
-#	Usage		#
-#########################
-
-The R5RLogger will automatically start logging game data when you start a match. 
- Your log name is saved as the MATCH ID.
-
-
-
+The Logger is now installed. To enable:
 
 
 ###########################################################################################
@@ -94,6 +83,16 @@ The R5RLogger will automatically start logging game data when you start a match.
 The logs can be found in:
 {r5reloaded}/platform/eventlogs
 
+
+#########################
+#	Usage		#
+#########################
+
+The R5RLogger will automatically start logging game data when you start a match. 
+ Your log name is saved as the MATCH ID.
+
+
+#########################
 
 The logger uses customizable commands within the gamemodes .nut files.
 
