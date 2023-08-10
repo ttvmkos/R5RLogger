@@ -68,9 +68,7 @@ The Logger is now installed.
 #########################
 
 The R5RLogger will automatically start logging game data when you start a match. 
-DO NOT RENAME YOUR LOGS. Your log name is saved as your MATCH ID.
-
-!!! ONLY WORKS AS HOST !!!
+ Your log name is saved as the MATCH ID.
 
 
 
@@ -134,17 +132,14 @@ different types of logging soon.
 #	GAMEMODES	#
 #########################
 
-Currently the logger and parser is only set up for SOLO Survival. (BattleRoyale)
-This is version 1.0.0, primarily for testing.
+Currently the logger and parser is only set up for 
+
+SOLO BR
+1V1
+FS_DM
+TDM
 
 
-By version 2.0
-
-Expect every game mode supported, more types of data (killed by / dmg etcetc)
-Expect flly customizable parser to extreme specifications.
-Expect the option to automatically upload logs from your server to the stats tracker master server.
-Expect being able to search matches by gamemode/playername/server/date/wins
-Expect a highscores page for verified servers running the logger. 
 
 
 #########################
