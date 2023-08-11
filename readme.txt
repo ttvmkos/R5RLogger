@@ -97,9 +97,9 @@ The R5RLogger will automatically start logging game data when you start a match.
 The logger uses customizable commands within the gamemodes .nut files.
 
     LogEvent(
-    "LOG DATA", 
-    "ENCRYPTION BOOL", 
+    "LOG DATA",
     "DIRECTORY CHECK BOOL"
+    "ENCRYPTION BOOL", 
 );
 
 
