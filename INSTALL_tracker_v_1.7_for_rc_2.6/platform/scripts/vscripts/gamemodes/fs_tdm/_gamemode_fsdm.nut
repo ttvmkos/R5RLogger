@@ -44,13 +44,17 @@ global function SendScoreboardToClient
 global function GetMainRingBoundary
 global function GetScoreboardShowingState
 global function is1v1EnabledAndAllowed
+global function GetCurrentRound // Logging-r5r.dev
 
 const string WHITE_SHIELD = "armor_pickup_lv1"
 const string BLUE_SHIELD = "armor_pickup_lv2"
 const string PURPLE_SHIELD = "armor_pickup_lv3"
 
-global bool VOTING_PHASE_ENABLE = true
+global bool VOTING_PHASE_ENABLE = false
 global bool SCOREBOARD_ENABLE = true
+		
+	
+
 
 //TDM Saved Weapon List
 global table<string,string> weaponlist
@@ -62,7 +66,9 @@ global const float KILLLEADER_STREAK_ANNOUNCE_TIME = 5
 table playersInfo
 
 
-
+// for use with logging fights r5r.dev
+global int fightIdCounter = 0
+global bool SHOULD_SHIP = false
 
 
 //solo mode
@@ -72,6 +78,11 @@ enum eTDMState
 	IN_PROGRESS = 0
 	NEXT_ROUND_NOW = 1
 }
+
+
+
+
+
 
 struct {
 	string scriptversion = ""
@@ -129,45 +140,402 @@ struct
 // ██   ██ ██   ██      ██ ██          ██      ██    ██ ██  ██ ██ ██         ██    ██ ██    ██ ██  ██ ██      ██
 // ██████  ██   ██ ███████ ███████     ██       ██████  ██   ████  ██████    ██    ██  ██████  ██   ████ ███████
 
-//start mkos r5r.dev logging config
-	// The way data is passed to sqvm for integers is weird, so let's convert to an int in squirrel logic:
 
-	bool logging_check = false;
-	bool enc = false; 
-	bool ship = false; 
+// r5r.dev logging config
+// function to return current round to codecallbacks
 
-	void function logsettings() 
-	{
-		logging_check = false;
-		enc = false;
-		ship = false;
+int function GetCurrentRound() {
+    return file.currentRound;
+}
 
-		if (GetCurrentPlaylistVarBool("logging_enabled", false)) 
-		{
-			logging_check = true;
+//START KILL RECAP
+/*****************************************************************************************************************************/
 
-			if (GetCurrentPlaylistVarBool("logging_encryption", false)) {
-				enc = true; 
+struct DamageEvent {
+    string weaponSource
+    int hitCount
+    float bulletsHit
+    float damage
+	float lastHitTimestamp
+	int headshots
+	float actionTimestamp
+};
+
+
+struct Fight {
+    array<entity> attackers
+    entity victim
+    array<DamageEvent> damageEventsEntity1
+    array<DamageEvent> damageEventsEntity2
+    float totalDamageEntity1
+    float totalDamageEntity2
+    float LAST_ALIVE
+    bool fightEnded
+    string lastWeaponSource
+    int fightId
+}
+
+struct OngoingFight {
+    Fight fight
+    bool isComplete
+}
+
+
+
+struct CompleteFight {
+    entity entity1
+    entity entity2
+    array<DamageEvent> damageEventsEntity1
+    array<DamageEvent> damageEventsEntity2
+    float totalDamageEntity1
+    float totalDamageEntity2
+	int fightId
+}
+
+array<OngoingFight> ongoingFights;
+array<CompleteFight> completedFights;
+
+int function GetUniqueFightId() {
+    return fightIdCounter++;
+}
+
+
+DamageEvent function CreateDamageEvent(string weaponSource, float damage) {
+    DamageEvent event;
+    event.weaponSource = weaponSource;
+    event.damage = damage;
+    event.hitCount = 0;
+    event.bulletsHit = 0.0;
+    event.lastHitTimestamp = 0;
+	event.headshots = 0;
+	event.actionTimestamp = Time();
+    return event;
+}
+
+
+void function EndFight(entity victim, entity attacker) {
+    // standard check before accessing entity
+    if (!IsValid(victim)) {
+        return;
+    }
+
+    // interate throgh and do standard checks
+    for (int i = 0; i < ongoingFights.len(); ++i) {
+        OngoingFight ongoingFight = ongoingFights[i];
+        
+        if (!ongoingFight.isComplete && (ongoingFight.fight.victim == victim || ongoingFight.fight.attackers.find(victim) != -1)) {
+            // total damages
+            float totalDamageEntity1 = ongoingFight.fight.totalDamageEntity1;
+            float totalDamageEntity2 = ongoingFight.fight.totalDamageEntity2;
+            
+            // quick fix to remove last hit damage rare occasion -- needs implemented better
+			if (totalDamageEntity1 + totalDamageEntity2 < 128) {
+				// remove ongoing fight
+				ongoingFights.remove(i);
+				return;
+            } else if (totalDamageEntity1 + totalDamageEntity2 > 200) 
+					{ //this value needs set to const playlist shield + playlist health
+					
+						if (!SHOULD_SHIP){
+							SHOULD_SHIP = true; //someone was killed by bullets, flag shipping
+							//sqprint("Flag for shipping set to true");
+							}
+					}
+
+            // create new object
+            CompleteFight completeFight;
+            completeFight.entity1 = ongoingFight.fight.attackers[ongoingFight.fight.attackers.len() - 1];
+            completeFight.entity2 = ongoingFight.fight.victim;
+            completeFight.damageEventsEntity1 = ongoingFight.fight.damageEventsEntity1;
+            completeFight.damageEventsEntity2 = ongoingFight.fight.damageEventsEntity2;
+            completeFight.totalDamageEntity1 = totalDamageEntity1;
+            completeFight.totalDamageEntity2 = totalDamageEntity2;
+			completeFight.fightId = ongoingFight.fight.fightId;
+
+            // complete ongoing fight / update arrays
+            ongoingFight.isComplete = true;
+            ongoingFights[i] = ongoingFight;
+            completedFights.append(completeFight);
+			int id = completeFight.fightId;
+            // log string
+            string logString = "|#Fight Recap:" + GetUnixTimestamp() + "| Fight ID: " + id + " ; Victim: " + victim.GetPlayerName() + " | Total Damage: " + (completeFight.totalDamageEntity1 + completeFight.totalDamageEntity2) + " ; ";
+
+            // player-specific recap
+			for (int e = 0; e < 2; ++e) {
+			entity currentPlayer = e == 0 ? completeFight.entity1 : completeFight.entity2;
+			array<DamageEvent> damageEvents = e == 0 ? completeFight.damageEventsEntity1 : completeFight.damageEventsEntity2;
+			entity victimEntity = e == 0 ? completeFight.entity2 : completeFight.entity1;
+			string victimName = victimEntity.GetPlayerName();
+
+			float totalDamage = 0.0;
+			int totalHits = 0;
+			int totalHeadshots = 0;
+
+			foreach (event in damageEvents) {
+				totalDamage += event.damage;
+				totalHits += event.hitCount;
+				totalHeadshots += event.headshots;
+
+				string weaponSource = event.weaponSource;
+				int bulletsPerShot = GetBulletsPerShot(weaponSource);
+				string mul = event.hitCount > 1 ? "s" : "";
+
+				logString += currentPlayer.GetPlayerName() + " dealt ";
+
+				if (IsSpecialWeapon(weaponSource)) {
+					int totalBulletsFired = event.hitCount * bulletsPerShot;
+					logString += format("; Entry: {%.2f damage} ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon %s, headshots: %d ; ",
+										event.damage, victimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
+				} else {
+					logString += format("; Entry: {%.2f damage} ON {%s} at time {%.2f} in {%d} hit%s with weapon %s, headshots: %d ; ",
+										event.damage, victimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
+				}
 			}
-			if (GetCurrentPlaylistVarBool("logging_shipstats", false)) {
-				ship = true;
-			}
-		} else {
-			logging_check = false;
+
+			// prints summary
+			logString += currentPlayer.GetPlayerName() + " dealt ";
+			logString += format("; Recap: {%.2f total damage} in {%d} hits with weapon(s), headshots: %d ; ",
+								totalDamage, totalHits, totalHeadshots);
+			
 		}
+
+
+			
+            float timeRemaining;
+            if (GetCurrentPlaylistName() == "fs_1v1") {
+                const int INITIAL_DELAY = 7;
+                const int DELAY_BETWEEN_ROUNDS = 13;
+
+                int totalDelay = INITIAL_DELAY + (file.currentRound - 1) * (FlowState_RoundTime() + DELAY_BETWEEN_ROUNDS);
+                timeRemaining = FlowState_RoundTime() - (Time() - totalDelay);
+            } else if (GameRules_GetGameMode() == "fs_dm") {
+                const int INITIAL_DELAY = 8;
+                int DELAY_BETWEEN_ROUNDS;
+
+                if (VOTING_PHASE_ENABLE) {
+                    DELAY_BETWEEN_ROUNDS = 32;
+                } else {
+                    DELAY_BETWEEN_ROUNDS = 13;
+                }
+
+                int totalDelay = INITIAL_DELAY + (file.currentRound - 1) * (FlowState_RoundTime() + DELAY_BETWEEN_ROUNDS);
+                timeRemaining = FlowState_RoundTime() - (Time() - totalDelay);
+            }
+
+            int placeM = (GetNumTeamsRemaining() == 0) ? 0 : GetNumTeamsRemaining();
+            // entity attacker = completeFight.entity1;
+            string team_of_killer = attacker.GetTeam().tostring();
+            string team_of_killed = victim.GetTeam().tostring();
+
+            logString += format("\n^^,%s,1,%s,%d,%s,%s,%s,%i,%d\n&&,%s,%d,%s,%d,%s,%s,%i,%d\n",
+                attacker.GetPlayerName(),
+                GetNumTeamsRemaining().tostring(),
+                GetUnixTimestamp(),
+                victim.GetPlayerName(),
+                team_of_killer,
+                team_of_killed,
+                timeRemaining,
+                ongoingFight.fight.fightId,
+                victim.GetPlayerName(),
+                placeM,
+                attacker.GetPlayerName(),
+                GetUnixTimestamp(),
+                team_of_killer,
+                team_of_killed,
+                timeRemaining,
+                ongoingFight.fight.fightId
+            );
+
+            LogEvent(logString, false, Logging_Encryption());
+            //sqprint(logString);
+
+            ongoingFight.fight.fightEnded = true;
+            ongoingFights.remove(i);
+            return;
+        }
+    }
+}
+
+
+// these need replaced with global CONST to make fuure updates seamless
+
+int function GetBulletsPerShot(string weaponSource) {
+    switch (weaponSource) {
+        case "mp_weapon_shotgun": return 8;
+        case "mp_weapon_doubletake": return 3;
+        case "mp_weapon_mastiff": return 8;
+        case "mp_weapon_energy_shotgun": return 11;
+        case "mp_weapon_shotgun_pistol": return 3;
+      
+    }
+    return 0; 
+}
+
+float function GetDamagePerBullet(string weaponSource) {
+    switch (weaponSource) {
+        case "mp_weapon_shotgun": return 7.00;
+        case "mp_weapon_doubletake": return 21.00;
+        case "mp_weapon_shotgun_pistol": return 20.25;
+        case "mp_weapon_energy_shotgun": return 9.00;
+        case "mp_weapon_mastiff": return 11.00;
+    }
+    return 0;
+}
+bool hasSpecialWeaponShotBeenCountered = false;
+
+float function GetHeadshotDamagePerBullet(string weaponSource) {
+    switch (weaponSource) {
+        case "mp_weapon_mastiff": return 13.75;
+        case "mp_weapon_doubletake": return 36.75;
+        case "mp_weapon_shotgun": return 8.75;
+        case "mp_weapon_energy_shotgun": return 11.25;
+        case "mp_weapon_shotgun_pistol": return 18.75;
+		
+    }
+    return 0;
+}
+
+
+bool function IsSpecialWeapon(string weaponSource) {
+    switch (weaponSource) {
+		case "mp_weapon_shotgun":
+        case "mp_weapon_mastiff":
+		case "mp_weapon_energy_shotgun":
+        case "mp_weapon_doubletake":
+		case "mp_weapon_shotgun_pistol":
+            return true;
+    }
+    return false;
+}
+
+
+void function HandleDamage(Fight fight, entity attacker, string weaponSource, float damageAmount, var damageInfo, entity victim) {
+    if (!IsValid(attacker) || !IsValid(victim)) return;
+
+    // which player?
+    bool isAttacker = fight.attackers.find(attacker) != -1;
+    array<DamageEvent> damageEvents = isAttacker ? fight.damageEventsEntity1 : fight.damageEventsEntity2;
+
+    float damagePerBullet = GetDamagePerBullet(weaponSource);
+    float bulletsHit = damageAmount / damagePerBullet;
+
+    // new?
+    if (damageEvents.len() == 0 || damageEvents[damageEvents.len() - 1].weaponSource != weaponSource) {
+        DamageEvent newEvent = CreateDamageEvent(weaponSource, 0);
+        damageEvents.append(newEvent);
+    }
+
+    int lastIndex = damageEvents.len() - 1;
+    DamageEvent event = damageEvents[lastIndex];
+
+    if (IsValidHeadShot(damageInfo, victim)) {
+        damagePerBullet = GetHeadshotDamagePerBullet(weaponSource);
+        event.headshots++;
+    }
+
+    float currentTime = Time();
+    if (IsSpecialWeapon(weaponSource)) {
+        if (event.lastHitTimestamp == 0 || (currentTime - event.lastHitTimestamp) * 1000 > 100) {
+            event.hitCount++;
+        }
+    } else {
+        event.hitCount++;
+    }
+
+    event.lastHitTimestamp = currentTime;
+    event.bulletsHit += bulletsHit;
+    event.damage += damageAmount;
+
+    damageEvents[lastIndex] = event;
+
+    
+    if (isAttacker) {
+        fight.damageEventsEntity1 = damageEvents;
+    } else {
+        fight.damageEventsEntity2 = damageEvents;
+    }
+
+    // update the total damage for each entity in the fight
+    if (isAttacker) {
+        fight.totalDamageEntity1 += damageAmount;
+    } else {
+        fight.totalDamageEntity2 += damageAmount;
+    }
+
+    //sqprint(format("Updated fight: Entity 1 Total Damage: %.2f, Entity 2 Total Damage: %.2f", fight.totalDamageEntity1, fight.totalDamageEntity2));
+}
+
+
+void function OnPlayerDamaged(entity victim, var damageInfo) 
+{
+    if (!IsValid(victim) || Bleedout_IsBleedingOut(victim)) return;
+
+    foreach (OngoingFight ongoingFight in ongoingFights) 
+	{
+        if ((ongoingFight.fight.victim == victim || ongoingFight.fight.attackers.find(victim) != -1) && ongoingFight.fight.fightEnded) {
+            return; // skip if the fight has already ended
+        }
+    }
+
+	entity attacker = InflictorOwner(DamageInfo_GetAttacker(damageInfo));
+	int sourceId = DamageInfo_GetDamageSourceIdentifier(damageInfo);
+	if (sourceId == eDamageSourceId.bleedout || sourceId == eDamageSourceId.human_execution) return;
+
+	string weaponSource = DamageSourceIDToString(sourceId);
+	float damageAmount = DamageInfo_GetDamage(damageInfo);
+
+	//sqprint(format("Attacker: %s | Victim: %s | Damage Amount: %.2f | Weapon Source: %s | Damage Source ID: %d", attacker.GetPlayerName(), victim.GetPlayerName(), damageAmount, weaponSource, sourceId));
+
+	if (!IsValid(victim) || (!IsValid(attacker))) return;
+
+ // check if the fight is already in progress
+    bool fightInProgress = false;
+    foreach (OngoingFight ongoingFight in ongoingFights) {
+        if ((ongoingFight.fight.victim == victim && ongoingFight.fight.attackers.find(attacker) != -1) ||
+            (ongoingFight.fight.victim == attacker && ongoingFight.fight.attackers.find(victim) != -1)) {
+            bool isAttacker = ongoingFight.fight.attackers.find(attacker) != -1;
+            array<DamageEvent> damageEvents = isAttacker ? ongoingFight.fight.damageEventsEntity1 : ongoingFight.fight.damageEventsEntity2;
+            HandleDamage(ongoingFight.fight, attacker, weaponSource, damageAmount, damageInfo, victim);
+            if (isAttacker) {
+                ongoingFight.fight.damageEventsEntity1 = damageEvents;
+            } else {
+                ongoingFight.fight.damageEventsEntity2 = damageEvents;
+            }
+            fightInProgress = true;
+            break;
+        }
+    }
+
+		if (!fightInProgress) {
+		// start a new fight if not
+		OngoingFight newOngoingFight;
+		newOngoingFight.fight.attackers = [attacker];
+		newOngoingFight.fight.victim = victim;
+		newOngoingFight.fight.damageEventsEntity1 = [];
+		newOngoingFight.fight.damageEventsEntity2 = [];
+		newOngoingFight.fight.totalDamageEntity1 = 0;
+		newOngoingFight.fight.totalDamageEntity2 = 0;
+		newOngoingFight.fight.LAST_ALIVE = 0;
+		newOngoingFight.fight.fightEnded = false;
+		newOngoingFight.fight.lastWeaponSource = "";
+		newOngoingFight.fight.fightId = GetUniqueFightId();
+		//sqprint(format("Started Fight with ID: %d", newOngoingFight.fight.fightId));
+		newOngoingFight.isComplete = false;
+		ongoingFights.append(newOngoingFight);
+
+		// handle damage
+		HandleDamage(newOngoingFight.fight, attacker, weaponSource, damageAmount, damageInfo, victim);
 	}
+}
 
-	string function MatchID(){
-
-			return SQMatchID().tostring();
-	}
-
-	// end log setup
-
+//END KILL RECAP
+/*****************************************************************************************************************************/
 
 
 void function _CustomTDM_Init()
 {
+	
+
 	file.scriptversion = FLOWSTATE_VERSION
 	
 	RegisterSignal("NewKillOnPlayerStreak")
@@ -208,37 +576,24 @@ void function _CustomTDM_Init()
 			thread _OnPlayerConnected(player)
 
         UpdatePlayerCounts()
+		
+		if( !Logging_Enabled() || !IsValid( player ) || !player.p.isConnected )
+		{ return; } else {
+		thread AddEntityCallback_OnDamaged( player, OnPlayerDamaged ) //added for tracking r5r.dev
+		}
     })
 
     AddSpawnCallback( "prop_survival", DissolveItem )
 
     AddCallback_OnPlayerKilled(void function(entity victim, entity attacker, var damageInfo) {
-        if (FlowState_SURF())
+ 
+
+  if (FlowState_SURF())
             thread _OnPlayerDiedSURF(victim, attacker, damageInfo)
         else thread _OnPlayerDied(victim, attacker, damageInfo)
-
-
-		logsettings();
-		if (logging_check)
-		{
-			if ( IsValid( victim ) && IsValid( attacker ) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker ) 
-			{
-				LogEvent(
-				format("^^,%s,1,%s,%d\n", attacker.GetPlayerName(),GetNumTeamsRemaining().tostring(),GetUnixTimestamp()),
-				false,
-				true
-				);
-			}
-
-			//mkos-add death placement log - && denotes placement in parser - line 861
-			int placeM = (GetNumTeamsRemaining() == 0) ? 0 : GetNumTeamsRemaining();
-			LogEvent(
-			format("&&,%s,%d,%s,%d\n", victim.GetPlayerName(), placeM,victim.GetPlayerName(),GetUnixTimestamp()),
-			false,
-			true
-			);
-		}
-
+		//addhere
+		
+	
     })
 
 	if (FlowState_SURF()){
@@ -495,6 +850,7 @@ void function _OnPlayerConnected(entity player)
 	while(IsDisconnected( player )) WaitFrame()
 
     if(!IsValid(player)) return
+								
 
 	if(FlowState_ForceCharacter() && !(GetCurrentPlaylistVarBool( "flowstate_hackersVsPros", false ))){
 		player.SetPlayerNetBool( "hasLockedInCharacter", true)
@@ -623,7 +979,7 @@ void function _OnPlayerConnected(entity player)
 	}
 	
 	if(!GetCurrentPlaylistVarBool( "flowstate_hackersVsPros", false ))
-		thread __HighPingCheck( player )
+		//thread __HighPingCheck( player )
 	
 	thread Flowstate_InitAFKThreadForPlayer(player)
 	
@@ -649,12 +1005,74 @@ void function _OnPlayerConnected(entity player)
 			}
 		}	
 
-		if (GetCurrentPlaylistVarBool("logging_enabled", false)) 
-		{
-			SetMatchID();
-		}
+	
+	
 		thread soloModefixDelayStart1()
 	}
+	
+	//sqprint(format("Bool for SHOULD_SHIP: %s", SHOULD_SHIP.tostring()));
+	//Add connection by setting kill to 0 ; CONNECT LOG r5r.dev
+	if ( Logging_Enabled() && IsValid( player ) ) 
+	{	string pName = player.GetPlayerName();
+		Message(player, " ", "Match stats tracking by www.r5r.dev" , 15)
+		int attempts = 0;
+		while ( !isLogging() && attempts < 22 ) 
+		{ 
+			wait(1);
+			attempts++;
+			
+			if ( !IsValid( player )) 
+			{
+			//sqprint("Player disconnected");
+			return; 
+			}
+		}
+		if (!isLogging() || attempts >= 22) { 
+		//sqprint("Failed to write connection entries to log || Logthread did not start.");
+		} else {
+			try { 
+					float timeRemaining;
+					
+				if (GetCurrentPlaylistName() == "fs_1v1") {
+					const int INITIAL_DELAY = 7;
+					const int DELAY_BETWEEN_ROUNDS = 13;
+
+					int totalDelay = INITIAL_DELAY + (file.currentRound - 1) * (FlowState_RoundTime() + DELAY_BETWEEN_ROUNDS);
+					timeRemaining = FlowState_RoundTime() - (Time() - totalDelay);
+				} else if (GameRules_GetGameMode() == "fs_dm") {
+					const int INITIAL_DELAY = 8;
+					int DELAY_BETWEEN_ROUNDS;
+
+					if (VOTING_PHASE_ENABLE) {
+						DELAY_BETWEEN_ROUNDS = 32;
+					} else {
+						DELAY_BETWEEN_ROUNDS = 13;
+					}
+
+					int totalDelay = INITIAL_DELAY + (file.currentRound - 1) * (FlowState_RoundTime() + DELAY_BETWEEN_ROUNDS);
+					timeRemaining = FlowState_RoundTime() - (Time() - totalDelay);
+				}
+				if (IsValid(player)) {
+					LogEvent(format("^^,%s,0,%s,%d,,,,%i\n",
+					   pName,
+					   GetNumTeamsRemaining().tostring(),
+					   GetUnixTimestamp(),
+					   timeRemaining), 
+					false,
+					Logging_Encryption()
+					);
+				} else {
+					//sqprint("Player disconnected before logging.");
+				}
+
+				//sqprint(format("Logs wrote at %i isLogging: %s", timeRemaining, isLogging().tostring()));
+			} catch (error) {
+				//sqprint("Probably a disconnection " + error);
+			}
+		}
+		
+	}
+	
 }
 
 bool function is1v1EnabledAndAllowed()
@@ -730,6 +1148,7 @@ void function Flowstate_AppendBattleLogEvent(entity killer, entity victim)
 	if( is1v1EnabledAndAllowed() )
 		flowstate_gamemode = "fs_1v1"
 	
+	
 	if(IsValid(killer.GetLatestPrimaryWeapon( eActiveInventorySlot.mainHand )))
 		attackerweapon1 = killer.GetLatestPrimaryWeapon( eActiveInventorySlot.mainHand ).GetWeaponClassName()
 	
@@ -794,8 +1213,43 @@ void function Flowstate_SaveBattleLogToFile_Linux() //Use parser
 	file.battlelog.clear()
 }
 
+
+/*
+string function AnalyzeDamageInfo(var damageInfo) {
+    table damageTable = GetDamageTableFromInfo(damageInfo);
+
+    string analysisString = "";
+
+    foreach (key, value in damageTable) {
+        analysisString += "Key: " + key + ", Value: " + value + "\n";
+    }
+
+    return analysisString;
+}
+*/
+
+
+string function AnalyzeDamageInfo(var damageInfo) {
+    table damageTable = GetDamageTableFromInfo(damageInfo);
+
+    string analysisString = "";
+    analysisString += "Damage Source ID: " + damageTable["damageSourceId"] + "\n";
+    analysisString += "Origin: " + damageTable["origin"] + "\n";
+    analysisString += "Force: " + damageTable["force"] + "\n";
+    analysisString += "Script Type: " + damageTable["scriptType"] + "\n";
+
+    return analysisString;
+}
+
 void function _OnPlayerDied(entity victim, entity attacker, var damageInfo)
 {
+	if (Logging_Enabled() && IsValid(victim) && IsValid(attacker) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker) {
+    //sqprint("Ending fight due to health reaching zero");
+    EndFight(victim,attacker); // IMPORTANT! r5r.dev
+
+	} 
+			
+		
 	if (FlowState_RandomGunsEverydie() && FlowState_FIESTADeathboxes())
 		CreateFlowStateDeathBoxForPlayer(victim, attacker, damageInfo)
 
@@ -818,6 +1272,10 @@ void function _OnPlayerDied(entity victim, entity attacker, var damageInfo)
 		
 		if(!group.IsKeep)
 			group.IsFinished = true //tell solo thread this round has finished
+		
+		
+		
+		
 		
 		ClearInvincible(victim)
 		
@@ -2126,7 +2584,11 @@ void function RunTDM()
 		WaitFrame()
 	}
     WaitForever()
+	
+
 }
+
+
 
 void function SimpleChampionUI()
 /////////////Retículo Endoplasmático#5955 CaféDeColombiaFPS///////////////////
@@ -2355,6 +2817,7 @@ void function SimpleChampionUI()
 
 	if( GetBestPlayer() != null )
 		SetChampion( GetBestPlayer() )
+		
 
 	SurvivalCommentary_ResetAllData()
 
@@ -2391,22 +2854,18 @@ void function SimpleChampionUI()
 	float endTime = Time() + FlowState_RoundTime()
 	//printt("Flowstate DEBUG - TDM/FFA gameloop Round started.")
 
-
-	logsettings();
-	if (logging_check)
+	
+	// Round started, make a new log. r5r.dev
+	if (Logging_Enabled())
 	{
 		//mkos -start-log
-		MatchID();
-		// Announce via server Everyone's match id
-		sqprint(format(":::::::::::::::: Match started with MatchID: [ %s ] ::::::::::::::::", MatchID()))
 		//Start of FIRST log should ALWAYS be passed with a 3rd parameter of true (mkdir check)
-		//4th Parameter = Encryption ; Must be enabled to qualify for event/tournament servers
-
 		LogEvent(
-		format("|| New match started at: %d\n|#MatchID:%s\n", GetUnixTimestamp(), MatchID()), 
+		format("|| New match; round %s;  started at: %d\n",file.currentRound.tostring(), GetUnixTimestamp()), 
 		true,
-		true
+		Logging_Encryption()
 		);
+		//sqprint(format("Current round: %s ; isLogging: %s",file.currentRound.tostring(), isLogging().tostring()));
 	} else {
 		sqprint("::: Logging disabled -- to enable set in playlists file --");
 		}
@@ -2589,23 +3048,28 @@ void function SimpleChampionUI()
 				//printt("Flowstate DEBUG - tdmState is eTDMState.NEXT_ROUND_NOW Loop ended.")
 					
 
-						logsettings();
-						if (logging_check)
-						{
+	
+						if (Logging_Enabled())
+						{   
+							ongoingFights = []; // clear fights array
 							//start r5r.dev log finish
 								//mkos: log winner placement - && denotes placement entry for parser							
 								LogEvent(
 								format("|| Game ended at %d\n", GetUnixTimestamp()),
 								false,
-								true
+								Logging_Encryption()
 								);
 									
-										if(!ship){
+										if(!Logging_ShipStats()){
 											sqprint("Shipping to stats server DISABLED -- check playlists file to enable --");
 										}
 										
-										stopLogging(ship); //IMPORTANT 
-										// Set to true to send data to api, false to omit api connection.
+										if ( !Flag( "SurvivalCommentary_FirstBloodReached" ) || !SHOULD_SHIP ){
+										sqprint("No stats to ship...\n");
+										stopLogging(false);
+										} else {
+										stopLogging(Logging_ShipStats()); //IMPORTANT 
+										}
 									
 						}
 
@@ -2620,24 +3084,29 @@ void function SimpleChampionUI()
 			if( file.tdmState == eTDMState.NEXT_ROUND_NOW )
 			{
 				//printt("Flowstate DEBUG - tdmState is eTDMState.NEXT_ROUND_NOW Loop ended.")
-									
-						logsettings();
-						if (logging_check)
-						{
+								
+
+						if (Logging_Enabled())
+						{	
+							ongoingFights = []; // clear fights array
 							//start r5r.dev log finish
 								//mkos: log winner placement - && denotes placement entry for parser							
 								LogEvent(
 								format("|| Game ended at %d\n", GetUnixTimestamp()),
 								false,
-								true
+								Logging_Encryption()
 								);
 									
-										if(!ship){
+										if(!Logging_ShipStats()){
 											sqprint("Shipping to stats server DISABLED -- check playlists file to enable --");
 										}
 										
-										stopLogging(ship); //IMPORTANT 
-										// Set to true to send data to api, false to omit api connection.
+										if ( !Flag( "SurvivalCommentary_FirstBloodReached" ) || !SHOULD_SHIP ){
+										sqprint("No stats to ship...\n");
+										stopLogging(false);
+										} else {
+										stopLogging(Logging_ShipStats()); //IMPORTANT 
+										}
 									
 						}
 				break
@@ -2672,6 +3141,33 @@ void function SimpleChampionUI()
 			player.SetThirdPersonShoulderModeOn()
 			HolsterAndDisableWeapons( player )
 		}
+		
+	// Round ended, ship the round stats off
+	if (Logging_Enabled())
+	{
+		ongoingFights = []; // clear fights array
+		//start r5r.dev log finish
+			//mkos: log winner placement - && denotes placement entry for parser							
+			LogEvent(
+			format("|| Game ended at %d\n", GetUnixTimestamp()),
+			false,
+			Logging_Encryption()
+			);
+				
+				
+					if(!Logging_ShipStats()){
+						sqprint("Shipping to stats server DISABLED -- check playlists file to enable --");
+					}
+					
+					if ( !Flag( "SurvivalCommentary_FirstBloodReached" ) || !SHOULD_SHIP ){
+					sqprint("No stats to ship...\n");
+					stopLogging(false); //shutdown logging and don't ship empty match stats
+					} else {
+					stopLogging(Logging_ShipStats()); //ship via bool true/false
+					}
+	}
+	// end ship 
+	wait (2);
 	
 	if( SCOREBOARD_ENABLE )
 		thread SendScoreboardToClient()

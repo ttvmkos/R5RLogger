@@ -1,4 +1,4 @@
-xt
+
      					########__########_########_
 					##_____##_##_______##_____##
 					##_____##_##_______##_____##
@@ -21,11 +21,11 @@ ____8_888888888888_`8888888P'_________`8888888P'________`8888888P'____8_88888888
 					#########################
 					#	R5R LOGGER	#
 					#########################
-					#	Version 1.0.3	#
+					#	Version 1.7	#
 					#	By R5mkos	#
 					#	https://r5r.dev	#	
-					#	BETA RELEASE	#
-					#	For: 2.2.7 R5R	#
+					#	INDEV RELEASE	#
+					#	For: 2.2.6 R5R	#
 					#########################
 					#	<<<<<<<<<<	#
 #########################################	<<<<<<<<<<	#
@@ -33,19 +33,14 @@ ____8_888888888888_`8888888P'_________`8888888P'________`8888888P'____8_88888888
 #################################################################
 
 
-Version 1.3 only works with 
-version rc2.2.7 of the r5reloaded sdk.
+Version 1.7 only works with the latest SDK as of August 21, 2023
+version rc2.2.6
 
-
-You can download this version here
-https://github.com/Mauler125/r5sdk/releases/tag/v2.2_rc7_tournaments
 
 
 1. Must have the core s3 apex legends game files.
 2. Must be updated to latest r5reloaded SDK with flowstate
 
-
-https://github.com/M1kep/R5ReloadedInstaller/releases/tag/v0.15.1
 
 
 #########################
@@ -53,7 +48,7 @@ https://github.com/M1kep/R5ReloadedInstaller/releases/tag/v0.15.1
 #########################
 
 
-1. Download the latest version of the R5Logger from this repository.
+1. Download the appropriate version of the R5Logger from this repository.
 2. Locate the root folder of your R5Reloaded game.
 3. Copy ALL the files inside of INSTALL into the R5Reloaded game root folder.
 4. Choose overwrite files.
@@ -92,48 +87,13 @@ The R5RLogger will automatically start logging game data when you start a match.
  Your log name is saved as the MATCH ID.
 
 
-#########################
-
-The logger uses customizable commands within the gamemodes .nut files.
-
-    LogEvent(
-    "LOG DATA",
-    "DIRECTORY CHECK BOOL"
-    "ENCRYPTION BOOL", 
-);
-
-
-________________________
-Log data is parsed in this way:
-
-
-&& = placement entry
-^^ = kill entry
-|| = comment
-|# = Match ID
-
-________________________
-Format:
-
-
-&&,playername,players-remaining
-^^,playername,kills,players-remaining
-
-
-
-________________________
-Adding more customization for
-different types of logging soon.
-
-
 
 #########################
 #	GAMEMODES	#
 #########################
 
-Currently the logger and parser is only set up for 
+Currently this logger and parser is only set up for 
 
-SOLO BR
 1V1
 FS_DM
 TDM
@@ -149,7 +109,6 @@ Upload your log to
 
 https://r5r.dev
 to see the results!
-
 
 
 #########################
