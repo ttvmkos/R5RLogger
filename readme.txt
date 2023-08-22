@@ -60,7 +60,7 @@ The Logger is now installed. To enable:
 
 ###########################################################################################
 
-  ADD PLAYLIST VAR BOOLS TO PLAYLISTS FILE (GLOBAL SETTINGS WILL DO)
+  ADD PLAYLIST VAR BOOLS TO PLAYLISTS FILE (CURRENTLY PLACED PER-GAMETYPE)
 
 ###########################################################################################
 
