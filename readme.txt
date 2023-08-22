@@ -83,8 +83,34 @@ The logs can be found in:
 #	Usage		#
 #########################
 
+logging_enabled 1/0 = on/off :
+------------------------------
 The R5RLogger will automatically start logging game data when you start a match. 
  Your log name is saved as the MATCH ID.
+
+
+
+logging_encryption 1/0 = on/off :
+---------------------------------
+The R5RLogger will encrypt all log data
+
+
+
+logging_shipstats 1/0 = on/off :
+--------------------------------
+The R5RLogger will automatically ship the stats to the tracker, (https://r5r.dev)
+only if someone was killed by a player at least once during the match.
+
+
+
+DEFAULTS:
+--------------------------------
+If no options are set in your playlists file, all options will be set to 0/false/off by default.
+ {playlists_r5_patch.txt}
+
+Located in 
+
+{your_r5reloaded_folder/platform}
 
 
 
@@ -92,7 +118,7 @@ The R5RLogger will automatically start logging game data when you start a match.
 #	GAMEMODES	#
 #########################
 
-Currently this logger and parser is only set up for 
+Currently 1.7 logger is only set up for 
 
 1V1
 FS_DM
