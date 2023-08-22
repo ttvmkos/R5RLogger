@@ -85,8 +85,8 @@ The logs can be found in:
 
 logging_enabled 1/0 = on/off :
 ------------------------------
-The R5RLogger will automatically start logging game data when you start a match. 
- Your log name is saved as the MATCH ID.
+The R5RLogger will automatically start logging game data when you host a match / server. 
+ Log name is saved as the MATCH ID. A new MatchID / stats logging is generated per round. 
 
 
 
