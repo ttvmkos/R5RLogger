@@ -153,6 +153,7 @@ int function GetCurrentRound() {
 
 struct DamageEvent {
     string weaponSource
+	string attackerName
     int hitCount
     float bulletsHit
     float damage
@@ -183,6 +184,8 @@ struct OngoingFight {
 
 
 struct CompleteFight {
+	array<entity> attackers
+    entity victim
     entity entity1
     entity entity2
     array<DamageEvent> damageEventsEntity1
@@ -200,8 +203,9 @@ int function GetUniqueFightId() {
 }
 
 
-DamageEvent function CreateDamageEvent(string weaponSource, float damage) {
+DamageEvent function CreateDamageEvent(string weaponSource, float damage, string attackerName) {
     DamageEvent event;
+	event.attackerName = attackerName;
     event.weaponSource = weaponSource;
     event.damage = damage;
     event.hitCount = 0;
@@ -214,90 +218,154 @@ DamageEvent function CreateDamageEvent(string weaponSource, float damage) {
 
 
 void function EndFight(entity victim, entity attacker) {
-    // standard check before accessing entity
+    // Standard check before accessing entity
     if (!IsValid(victim)) {
         return;
     }
 
-    // interate throgh and do standard checks
+    // Iterate through and do standard checks
     for (int i = 0; i < ongoingFights.len(); ++i) {
         OngoingFight ongoingFight = ongoingFights[i];
         
         if (!ongoingFight.isComplete && (ongoingFight.fight.victim == victim || ongoingFight.fight.attackers.find(victim) != -1)) {
-            // total damages
+		
             float totalDamageEntity1 = ongoingFight.fight.totalDamageEntity1;
             float totalDamageEntity2 = ongoingFight.fight.totalDamageEntity2;
             
-            // quick fix to remove last hit damage rare occasion -- needs implemented better
-			if (totalDamageEntity1 + totalDamageEntity2 < 128) {
-				// remove ongoing fight
-				ongoingFights.remove(i);
-				return;
-            } else if (totalDamageEntity1 + totalDamageEntity2 > 200) 
-					{ //this value needs set to const playlist shield + playlist health
-					
-						if (!SHOULD_SHIP){
-							SHOULD_SHIP = true; //someone was killed by bullets, flag shipping
-							//sqprint("Flag for shipping set to true");
-							}
-					}
+			// quick fix to remove last hit damage rare occasion -- needs implemented better
+			if (totalDamageEntity1 + totalDamageEntity2 < 1) {
+                ongoingFights.remove(i);
+                return;
+			} else if (totalDamageEntity1 + totalDamageEntity2 > 1) { // this value needs set to const playlist shield + playlist health
+                if (!SHOULD_SHIP) {
+                    SHOULD_SHIP = true; // someone was killed by bullets, flag shipping
+                }
+           }
 
-            // create new object
             CompleteFight completeFight;
+			completeFight.attackers = ongoingFight.fight.attackers;
             completeFight.entity1 = ongoingFight.fight.attackers[ongoingFight.fight.attackers.len() - 1];
             completeFight.entity2 = ongoingFight.fight.victim;
             completeFight.damageEventsEntity1 = ongoingFight.fight.damageEventsEntity1;
             completeFight.damageEventsEntity2 = ongoingFight.fight.damageEventsEntity2;
             completeFight.totalDamageEntity1 = totalDamageEntity1;
             completeFight.totalDamageEntity2 = totalDamageEntity2;
-			completeFight.fightId = ongoingFight.fight.fightId;
+            completeFight.fightId = ongoingFight.fight.fightId;
 
             // complete ongoing fight / update arrays
             ongoingFight.isComplete = true;
             ongoingFights[i] = ongoingFight;
             completedFights.append(completeFight);
-			int id = completeFight.fightId;
-            // log string
-            string logString = "|#Fight Recap:" + GetUnixTimestamp() + "| Fight ID: " + id + " ; Victim: " + victim.GetPlayerName() + " | Total Damage: " + (completeFight.totalDamageEntity1 + completeFight.totalDamageEntity2) + " ; ";
+            int id = completeFight.fightId;
+            
+            string logString = "|#Fight Recap:{" + GetUnixTimestamp() + "}| Fight ID:{" + id + "}| Victim: {" + victim.GetPlayerName() + "} | Total Damage: {" + (completeFight.totalDamageEntity1 + completeFight.totalDamageEntity2) + "};";
 
-            // player-specific recap
-			for (int e = 0; e < 2; ++e) {
-			entity currentPlayer = e == 0 ? completeFight.entity1 : completeFight.entity2;
-			array<DamageEvent> damageEvents = e == 0 ? completeFight.damageEventsEntity1 : completeFight.damageEventsEntity2;
-			entity victimEntity = e == 0 ? completeFight.entity2 : completeFight.entity1;
-			string victimName = victimEntity.GetPlayerName();
+             for (int e = 0; e < completeFight.attackers.len(); ++e) {
+            entity currentPlayer = completeFight.attackers[e];
+            array<DamageEvent> damageEvents = completeFight.damageEventsEntity1;
+            entity victimEntity = completeFight.entity2;
+            string victimName = victimEntity.GetPlayerName();
 
-			float totalDamage = 0.0;
-			int totalHits = 0;
-			int totalHeadshots = 0;
+            float totalDamage = 0.0;
+            int totalHits = 0;
+            int totalHeadshots = 0;
 
-			foreach (event in damageEvents) {
-				totalDamage += event.damage;
-				totalHits += event.hitCount;
-				totalHeadshots += event.headshots;
+            foreach (event in damageEvents) {
+                    totalDamage += event.damage;
+                    totalHits += event.hitCount;
+                    totalHeadshots += event.headshots;
 
-				string weaponSource = event.weaponSource;
-				int bulletsPerShot = GetBulletsPerShot(weaponSource);
-				string mul = event.hitCount > 1 ? "s" : "";
+                    string weaponSource = event.weaponSource;
+                    int bulletsPerShot = GetBulletsPerShot(weaponSource);
+                    string mul = event.hitCount > 1 ? "s" : "";
 
-				logString += currentPlayer.GetPlayerName() + " dealt ";
+                    logString += "{" + currentPlayer.GetPlayerName() + "} dealt:";
 
-				if (IsSpecialWeapon(weaponSource)) {
-					int totalBulletsFired = event.hitCount * bulletsPerShot;
-					logString += format("; Entry: {%.2f damage} ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon %s, headshots: %d ; ",
-										event.damage, victimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
-				} else {
-					logString += format("; Entry: {%.2f damage} ON {%s} at time {%.2f} in {%d} hit%s with weapon %s, headshots: %d ; ",
-										event.damage, victimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
+                    if (IsSpecialWeapon(weaponSource)) {
+                        int totalBulletsFired = event.hitCount * bulletsPerShot;
+                        logString += format("Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon {%s} headshots: {%d};",
+                                            event.damage, victimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
+                    } else {
+                        logString += format("Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s with weapon {%s} headshots: {%d};",
+                                            event.damage, victimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
+                    }
+                }
+
+                // summary
+                logString += "{" + currentPlayer.GetPlayerName() + "} dealt:";
+                logString += format("Recap: {%.2f} total damage in {%d} hits with weapon(s), headshots: {%d};",
+                                    totalDamage, totalHits, totalHeadshots);
+									
+				 array<DamageEvent> victimDamageEvents = completeFight.damageEventsEntity2;
+				float totalVictimDamage = 0.0;
+				int totalVictimHits = 0;
+				int totalVictimHeadshots = 0;
+
+				foreach (event in victimDamageEvents) {
+					totalVictimDamage += event.damage;
+					totalVictimHits += event.hitCount;
+					totalVictimHeadshots += event.headshots;
+					string relatedVictimName = completeFight.entity1.GetPlayerName();
+					string attackerName = event.attackerName;
+								string weaponSource = event.weaponSource;
+								int bulletsPerShot = GetBulletsPerShot(weaponSource);
+								string mul = event.hitCount > 1 ? "s" : "";
+								if (IsSpecialWeapon(weaponSource)) {
+									int totalBulletsFired = event.hitCount * bulletsPerShot;
+									logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon {%s} headshots: {%d};",
+														attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
+								} else {
+									logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s with weapon {%s} headshots: {%d};",
+														attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
+								}
+
+						//todo
 				}
+
+				// victim summary
+				logString += "{" + victim.GetPlayerName() + "} dealt:";
+				logString += format("Recap: {%.2f} total damage in {%d} hits with weapon(s), headshots: {%d};",
+									totalVictimDamage, totalVictimHits, totalVictimHeadshots);
+            }
+					
+
+            // related damages
+			for (int j = 0; j < ongoingFights.len(); ++j) {
+				if (i != j) { // skip
+					OngoingFight relatedFight = ongoingFights[j];
+					if (relatedFight.fight.victim == victim) {
+						foreach (entity relatedAttacker in relatedFight.fight.attackers) {
+							float totalRelatedDamage = 0.0;
+							int totalRelatedHits = 0;
+							int totalRelatedHeadshots = 0;
+							array<DamageEvent> relatedDamageEvents = relatedFight.fight.damageEventsEntity1;
+							string relatedVictimName = victim.GetPlayerName();
+							foreach (DamageEvent event in relatedDamageEvents) {
+								totalRelatedDamage += event.damage;
+								totalRelatedHits += event.hitCount;
+								totalRelatedHeadshots += event.headshots;
+								string attackerName = event.attackerName;
+								string weaponSource = event.weaponSource;
+								int bulletsPerShot = GetBulletsPerShot(weaponSource);
+								string mul = event.hitCount > 1 ? "s" : "";
+								if (IsSpecialWeapon(weaponSource)) {
+									int totalBulletsFired = event.hitCount * bulletsPerShot;
+									logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon {%s} headshots: {%d};",
+														attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
+								} else {
+									logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s with weapon {%s} headshots: {%d};",
+														attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
+								}
+								
+								logString += format("{%s} dealt:Recap: {%.2f} total damage in {%d} hits with weapon(s), headshots: {%d};",
+								attackerName, totalRelatedDamage, totalRelatedHits, totalRelatedHeadshots);
+
+							}
+						}
+					}
+				} //skip
 			}
 
-			// prints summary
-			logString += currentPlayer.GetPlayerName() + " dealt ";
-			logString += format("; Recap: {%.2f total damage} in {%d} hits with weapon(s), headshots: %d ; ",
-								totalDamage, totalHits, totalHeadshots);
-			
-		}
 
 
 			
@@ -347,7 +415,7 @@ void function EndFight(entity victim, entity attacker) {
             );
 
             LogEvent(logString, false, Logging_Encryption());
-            //sqprint(logString);
+            sqprint(logString);
 
             ongoingFight.fight.fightEnded = true;
             ongoingFights.remove(i);
@@ -355,6 +423,8 @@ void function EndFight(entity victim, entity attacker) {
         }
     }
 }
+
+	
 
 
 // these need replaced with global CONST to make fuure updates seamless
@@ -418,10 +488,11 @@ void function HandleDamage(Fight fight, entity attacker, string weaponSource, fl
 
     float damagePerBullet = GetDamagePerBullet(weaponSource);
     float bulletsHit = damageAmount / damagePerBullet;
-
+	string attackerName = attacker.GetPlayerName();
+	
     // new?
     if (damageEvents.len() == 0 || damageEvents[damageEvents.len() - 1].weaponSource != weaponSource) {
-        DamageEvent newEvent = CreateDamageEvent(weaponSource, 0);
+        DamageEvent newEvent = CreateDamageEvent(weaponSource, 0, attackerName);
         damageEvents.append(newEvent);
     }
 
@@ -462,7 +533,7 @@ void function HandleDamage(Fight fight, entity attacker, string weaponSource, fl
         fight.totalDamageEntity2 += damageAmount;
     }
 
-    //sqprint(format("Updated fight: Entity 1 Total Damage: %.2f, Entity 2 Total Damage: %.2f", fight.totalDamageEntity1, fight.totalDamageEntity2));
+    sqprint(format("Updated fight: Entity 1 Total Damage: %.2f, Entity 2 Total Damage: %.2f", fight.totalDamageEntity1, fight.totalDamageEntity2));
 }
 
 
@@ -484,7 +555,7 @@ void function OnPlayerDamaged(entity victim, var damageInfo)
 	string weaponSource = DamageSourceIDToString(sourceId);
 	float damageAmount = DamageInfo_GetDamage(damageInfo);
 
-	//sqprint(format("Attacker: %s | Victim: %s | Damage Amount: %.2f | Weapon Source: %s | Damage Source ID: %d", attacker.GetPlayerName(), victim.GetPlayerName(), damageAmount, weaponSource, sourceId));
+	sqprint(format("Attacker: %s | Victim: %s | Damage Amount: %.2f | Weapon Source: %s | Damage Source ID: %d", attacker.GetPlayerName(), victim.GetPlayerName(), damageAmount, weaponSource, sourceId));
 
 	if (!IsValid(victim) || (!IsValid(attacker))) return;
 
@@ -519,7 +590,7 @@ void function OnPlayerDamaged(entity victim, var damageInfo)
 		newOngoingFight.fight.fightEnded = false;
 		newOngoingFight.fight.lastWeaponSource = "";
 		newOngoingFight.fight.fightId = GetUniqueFightId();
-		//sqprint(format("Started Fight with ID: %d", newOngoingFight.fight.fightId));
+		sqprint(format("Started Fight with ID: %d", newOngoingFight.fight.fightId));
 		newOngoingFight.isComplete = false;
 		ongoingFights.append(newOngoingFight);
 
@@ -1244,7 +1315,7 @@ string function AnalyzeDamageInfo(var damageInfo) {
 void function _OnPlayerDied(entity victim, entity attacker, var damageInfo)
 {
 	if (Logging_Enabled() && IsValid(victim) && IsValid(attacker) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker) {
-    //sqprint("Ending fight due to health reaching zero");
+    sqprint("Ending fight via onplayerdied");
     EndFight(victim,attacker); // IMPORTANT! r5r.dev
 
 	} 
