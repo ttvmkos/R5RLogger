@@ -395,7 +395,7 @@ void function EndFight(entity victim, entity attacker) {
             string team_of_killer = attacker.GetTeam().tostring();
             string team_of_killed = victim.GetTeam().tostring();
 
-            logString += format("\n^^,%s,1,%s,%d,%s,%s,%s,%i,%d\n&&,%s,%d,%s,%d,%s,%s,%i,%d\n",
+            logString += format("\n^^,%s,1,%s,%d,%s,%s,%s,%i,%d,%s\n&&,%s,%d,%s,%d,%s,%s,%i,%d,%s\n",
                 attacker.GetPlayerName(),
                 GetNumTeamsRemaining().tostring(),
                 GetUnixTimestamp(),
@@ -404,6 +404,7 @@ void function EndFight(entity victim, entity attacker) {
                 team_of_killed,
                 timeRemaining,
                 ongoingFight.fight.fightId,
+				attacker.p.AmIController.tostring(),
                 victim.GetPlayerName(),
                 placeM,
                 attacker.GetPlayerName(),
@@ -411,7 +412,8 @@ void function EndFight(entity victim, entity attacker) {
                 team_of_killer,
                 team_of_killed,
                 timeRemaining,
-                ongoingFight.fight.fightId
+                ongoingFight.fight.fightId,
+				victim.p.AmIController.tostring()
             );
 
             LogEvent(logString, false, Logging_Encryption());
@@ -1974,8 +1976,8 @@ void function GiveRandomPrimaryWeaponMetagame(entity player)
 		"mp_weapon_energy_shotgun optic_cq_threat shotgun_bolt_l2",
 		"mp_weapon_energy_shotgun optic_cq_threat shotgun_bolt_l2",
 		"mp_weapon_mastiff",
-		"mp_weapon_shotgun optic_cq_threat shotgun_bolt_l2",
-		"mp_weapon_shotgun optic_cq_threat shotgun_bolt_l2",
+		//"mp_weapon_shotgun optic_cq_threat shotgun_bolt_l2",
+		//"mp_weapon_shotgun optic_cq_threat shotgun_bolt_l2",
 	]
 
 	foreach(weapon in Weapons)
@@ -2087,7 +2089,7 @@ void function GiveActualGungameWeapon(int index, entity player)
 		"mp_weapon_rspn101 optic_cq_hcog_bruiser barrel_stabilizer_l4_flash_hider stock_tactical_l3 bullets_mag_l2",
 		"mp_weapon_energy_shotgun shotgun_bolt_l1",
 		"mp_weapon_vinson optic_cq_hcog_bruiser stock_tactical_l3 highcal_mag_l3",
-		"mp_weapon_shotgun shotgun_bolt_l1",
+		// "mp_weapon_shotgun shotgun_bolt_l1",
 		"mp_weapon_hemlok optic_cq_hcog_bruiser stock_tactical_l3 highcal_mag_l3 barrel_stabilizer_l4_flash_hider",
 		"mp_weapon_mastiff",
 		"mp_weapon_pdw optic_cq_hcog_classic stock_tactical_l3 highcal_mag_l3",
@@ -2103,7 +2105,7 @@ void function GiveActualGungameWeapon(int index, entity player)
 		"mp_weapon_doubletake energy_mag_l3",
 		"mp_weapon_rspn101 optic_cq_hcog_classic bullets_mag_l1 barrel_stabilizer_l1 stock_tactical_l1",
 		"mp_weapon_wingman sniper_mag_l1",
-		"mp_weapon_shotgun",
+		//REMOVED EVA "mp_weapon_shotgun",
 		"mp_weapon_energy_shotgun",
 		"mp_weapon_vinson stock_tactical_l1 highcal_mag_l2",
 		"mp_weapon_r97 optic_cq_threat bullets_mag_l1 barrel_stabilizer_l3 stock_tactical_l1",
