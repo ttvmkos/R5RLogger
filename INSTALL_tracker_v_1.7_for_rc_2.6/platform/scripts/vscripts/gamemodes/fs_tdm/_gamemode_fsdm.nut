@@ -3126,7 +3126,7 @@ void function SimpleChampionUI()
 							//start r5r.dev log finish
 								//mkos: log winner placement - && denotes placement entry for parser							
 								LogEvent(
-								format("|| Game ended at %d\n", GetUnixTimestamp()),
+								format("\n|| Game ended at %d\n", GetUnixTimestamp()),
 								false,
 								Logging_Encryption()
 								);
@@ -3163,7 +3163,7 @@ void function SimpleChampionUI()
 							//start r5r.dev log finish
 								//mkos: log winner placement - && denotes placement entry for parser							
 								LogEvent(
-								format("|| Game ended at %d\n", GetUnixTimestamp()),
+								format("\n|| Game ended at %d\n", GetUnixTimestamp()),
 								false,
 								Logging_Encryption()
 								);
@@ -3220,7 +3220,7 @@ void function SimpleChampionUI()
 		//start r5r.dev log finish
 			//mkos: log winner placement - && denotes placement entry for parser							
 			LogEvent(
-			format("|| Game ended at %d\n", GetUnixTimestamp()),
+			format("\n|| Game ended at %d\n", GetUnixTimestamp()),
 			false,
 			Logging_Encryption()
 			);
