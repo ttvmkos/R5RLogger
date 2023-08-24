@@ -219,7 +219,7 @@ DamageEvent function CreateDamageEvent(string weaponSource, float damage, string
 
 void function EndFight(entity victim, entity attacker) {
     // Standard check before accessing entity
-    if (!IsValid(victim)) {
+    if (!IsValid(victim) || !attacker.p.isConnected || !victim.p.isConnected) {
         return;
     }
 
@@ -480,7 +480,7 @@ bool function IsSpecialWeapon(string weaponSource) {
 
 
 void function HandleDamage(Fight fight, entity attacker, string weaponSource, float damageAmount, var damageInfo, entity victim) {
-    if (!IsValid(attacker) || !IsValid(victim)) return;
+    if (!IsValid(attacker) || !IsValid(victim) || !attacker.p.isConnected || !victim.p.isConnected ) return;
 
     // which player?
     bool isAttacker = fight.attackers.find(attacker) != -1;
@@ -1092,13 +1092,13 @@ void function _OnPlayerConnected(entity player)
 			wait(1);
 			attempts++;
 			
-			if ( !IsValid( player )) 
+			if ( !IsValid( player ) || !player.p.isConnected ) 
 			{
 			//sqprint("Player disconnected");
 			return; 
 			}
 		}
-		if (!isLogging() || attempts >= 22) { 
+		if (!isLogging() || attempts >= 22 || !player.p.isConnected ) { 
 		//sqprint("Failed to write connection entries to log || Logthread did not start.");
 		} else {
 			try { 
@@ -1315,7 +1315,7 @@ string function AnalyzeDamageInfo(var damageInfo) {
 void function _OnPlayerDied(entity victim, entity attacker, var damageInfo)
 {
 	if (Logging_Enabled() && IsValid(victim) && IsValid(attacker) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker) {
-    sqprint("Ending fight via onplayerdied");
+    // sqprint("Ending fight via onplayerdied");
     EndFight(victim,attacker); // IMPORTANT! r5r.dev
 
 	} 
