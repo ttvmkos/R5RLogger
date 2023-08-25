@@ -420,9 +420,9 @@ void function EndFight(entity victim, entity attacker) {
             );
 
             LogEvent(logString, false, Logging_Encryption());
-            sqprint(logString);
+            //sqprint(logString);
 			
-			sqprint(format("Fight %d ended and removed", i) );
+			//sqprint(format("Fight %d ended and removed", i) );
             ongoingFight.fight.fightEnded = true;
             ongoingFights.remove(i);
             return;
@@ -539,7 +539,7 @@ void function HandleDamage(Fight fight, entity attacker, string weaponSource, fl
         fight.totalDamageEntity2 += damageAmount;
     }
 
-    sqprint(format("Updated fight: Entity 1 Total Damage: %.2f, Entity 2 Total Damage: %.2f", fight.totalDamageEntity1, fight.totalDamageEntity2));
+    //sqprint(format("Updated fight: Entity 1 Total Damage: %.2f, Entity 2 Total Damage: %.2f", fight.totalDamageEntity1, fight.totalDamageEntity2));
 }
 
 
@@ -561,7 +561,7 @@ void function OnPlayerDamaged(entity victim, var damageInfo)
 	string weaponSource = DamageSourceIDToString(sourceId);
 	float damageAmount = DamageInfo_GetDamage(damageInfo);
 
-	sqprint(format("Attacker: %s | Victim: %s | Damage Amount: %.2f | Weapon Source: %s | Damage Source ID: %d", attacker.GetPlayerName(), victim.GetPlayerName(), damageAmount, weaponSource, sourceId));
+	//sqprint(format("Attacker: %s | Victim: %s | Damage Amount: %.2f | Weapon Source: %s | Damage Source ID: %d", attacker.GetPlayerName(), victim.GetPlayerName(), damageAmount, weaponSource, sourceId));
 
 	if (!IsValid(victim) || (!IsValid(attacker))) return;
 
@@ -597,7 +597,7 @@ void function OnPlayerDamaged(entity victim, var damageInfo)
 		newOngoingFight.fight.fightEnded = false;
 		newOngoingFight.fight.lastWeaponSource = "";
 		newOngoingFight.fight.fightId = GetUniqueFightId();
-		sqprint(format("Started Fight with ID: %d", newOngoingFight.fight.fightId));
+		//sqprint(format("Started Fight with ID: %d", newOngoingFight.fight.fightId));
 		newOngoingFight.isComplete = false;
 		ongoingFights.append(newOngoingFight);
 
