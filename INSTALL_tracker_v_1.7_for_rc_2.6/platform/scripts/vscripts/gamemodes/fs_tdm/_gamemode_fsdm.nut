@@ -1407,7 +1407,7 @@ string function AnalyzeDamageInfo(var damageInfo) {
 void function _OnPlayerDied(entity victim, entity attacker, var damageInfo)
 {
 	if (Logging_Enabled() && IsValid(victim) && IsValid(attacker) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker) {
-     sqprint("Ending fight via onplayerdied");
+    // sqprint("Ending fight via onplayerdied");
     EndFight( victim, attacker, damageInfo ); // IMPORTANT! r5r.dev
 
 	} else if ( Logging_Enabled() && IsValid(victim) && victim.IsPlayer() ){
