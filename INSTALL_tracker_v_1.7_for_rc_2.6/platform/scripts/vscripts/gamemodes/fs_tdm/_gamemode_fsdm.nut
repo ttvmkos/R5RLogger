@@ -219,11 +219,19 @@ DamageEvent function CreateDamageEvent(string weaponSource, float damage, string
 }
 
 
-void function EndFight(entity victim, entity attacker) {
-    // Standard check before accessing entity
-    if (!IsValid(victim) || !attacker.p.isConnected || !victim.p.isConnected) {
-        return;
-    }
+void function EndFight(entity victim, entity attacker, var damageInfo) {
+ // Standard check before accessing entity
+	
+	if (IsValid(victim) && victim.IsPlayer() && victim.p.isConnected && !attacker.IsPlayer()){
+	//sqprint("skip");
+	} else {	
+		if (!IsValid(victim) || !attacker.p.isConnected || !victim.p.isConnected) {
+			return;
+		}
+	}
+	if ( attacker.IsPlayer() && !IsValid(attacker) ){ 
+		return; }
+	
 
     // Iterate through and do standard checks
     for (int i = 0; i < ongoingFights.len(); ++i) {
@@ -281,6 +289,10 @@ void function EndFight(entity victim, entity attacker) {
                     string weaponSource = event.weaponSource;
                     int bulletsPerShot = GetBulletsPerShot(weaponSource);
                     string mul = event.hitCount > 1 ? "s" : "";
+
+					if ( currentAttacker == "172" ){
+					currentAttacker = "(ring)";
+					}
 
                     logString += "{" + currentAttacker + "} dealt:";
 
@@ -395,14 +407,40 @@ void function EndFight(entity victim, entity attacker) {
 
             int placeM = (GetNumTeamsRemaining() == 0) ? 0 : GetNumTeamsRemaining();
             // entity attacker = completeFight.entity1;
-            string team_of_killer = attacker.GetTeam().tostring();
+			string attName = "";
+			string aController = "";
+			string attTeam = "-1";
+			if (!attacker.IsPlayer())
+			{
+				attTeam = "-1";
+				aController = "worldspawn";
+				
+				} else {
+				attTeam = attacker.GetTeam().tostring();
+				aController = attacker.p.AmIController.tostring();
+			}
+			
+			
+
+            string team_of_killer = attTeam;
             string team_of_killed = victim.GetTeam().tostring();
 			float pingVictim = victim.GetLatency() * 1000 - 40;
-			float pingAttacker = attacker.GetLatency() * 1000 - 40;
+			float pingAttacker = 0;
+			
+			if (attacker.IsPlayer())
+			{
+				attName = attacker.GetPlayerName();
+				pingAttacker = attacker.GetLatency() * 1000 - 40;
+				} else {
+		
+				attName = DamageInfo_GetDamageSourceIdentifier( damageInfo ).tostring();
+				
+			}
+			
 			int pA = pingAttacker.tointeger();
 			int pV = pingVictim.tointeger();
             logString += format("\n^^,%s,1,%s,%d,%s,%s,%s,%i,%d,%s,%d,%d\n&&,%s,%d,%s,%d,%s,%s,%i,%d,%s,%d,%d,%s\n",
-                attacker.GetPlayerName(),
+                attName,
                 GetNumTeamsRemaining().tostring(),
                 GetUnixTimestamp(),
                 victim.GetPlayerName(),
@@ -410,18 +448,18 @@ void function EndFight(entity victim, entity attacker) {
                 team_of_killed,
                 timeRemaining,
                 ongoingFight.fight.fightId,
-				attacker.p.AmIController.tostring(),
+				aController,
 				pA,
 				pV,
                 victim.GetPlayerName(),
                 placeM,
-                attacker.GetPlayerName(),
+                attName,
                 GetUnixTimestamp(),
                 team_of_killer,
                 team_of_killed,
                 timeRemaining,
                 ongoingFight.fight.fightId,
-				attacker.p.AmIController.tostring(),
+				aController,
 				pV,
 				pA,
 				victim.p.AmIController.tostring()
@@ -494,15 +532,43 @@ bool function IsSpecialWeapon(string weaponSource) {
 
 
 void function HandleDamage(Fight fight, entity attacker, string weaponSource, float damageAmount, var damageInfo, entity victim) {
-    if (!attacker.p.isConnected || !victim.p.isConnected ) return;
-
+	if (IsValid(victim) && victim.IsPlayer() && victim.p.isConnected && !attacker.IsPlayer()){
+	//sqprint("skip");
+	} else {	
+		if (!IsValid(victim) || !attacker.p.isConnected || !victim.p.isConnected) {
+			return;
+		}
+	}
+	if ( attacker.IsPlayer() && !IsValid(attacker) ){ 
+		return; }
+	
+	
+	float currentHealth = victim.GetHealth().tofloat() + victim.GetShieldHealth().tofloat();
+    
+    // negate damage that exceeds remaining health
+    if (damageAmount > currentHealth) {
+        damageAmount = currentHealth;
+    }
+	
     // which player?
     bool isAttacker = fight.attackers.find(attacker) != -1;
     array<DamageEvent> damageEvents = isAttacker ? fight.damageEventsEntity1 : fight.damageEventsEntity2;
 
     float damagePerBullet = GetDamagePerBullet(weaponSource);
     float bulletsHit = damageAmount / damagePerBullet;
-	string attackerName = attacker.GetPlayerName();
+	
+	// player or worldspawn?
+	string attackerName = " ";
+	
+	if (attacker.IsPlayer() && IsValid(attacker))
+	{
+		attackerName = attacker.GetPlayerName();
+		
+	} else {
+	
+		attackerName = DamageInfo_GetDamageSourceIdentifier( damageInfo ).tostring();
+		
+		}
 	
     // new?
     if (damageEvents.len() == 0 || damageEvents[damageEvents.len() - 1].weaponSource != weaponSource) {
@@ -591,11 +657,22 @@ void function OnPlayerDamaged(entity victim, var damageInfo)
         }
     }
 
+
+	string attackerName = " ";
+		if (attacker.IsPlayer() && IsValid(attacker)){
+		attackerName = attacker.GetPlayerName();
+		} else {
+		attackerName = DamageInfo_GetDamageSourceIdentifier( damageInfo ).tostring();
+			if ( attackerName == "deathField" ){ 
+		//	attacker = deathField;
+			}
+		}
+		
 		if (!fightInProgress) {
 		// start a new fight if not
 		OngoingFight newOngoingFight;
 		newOngoingFight.fight.attackers = [attacker];
-		newOngoingFight.fight.attackerNames = [attacker.GetPlayerName()];
+		newOngoingFight.fight.attackerNames = [attackerName];
 		newOngoingFight.fight.victim = victim;
 		newOngoingFight.fight.damageEventsEntity1 = [];
 		newOngoingFight.fight.damageEventsEntity2 = [];
@@ -1331,9 +1408,11 @@ void function _OnPlayerDied(entity victim, entity attacker, var damageInfo)
 {
 	if (Logging_Enabled() && IsValid(victim) && IsValid(attacker) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker) {
      sqprint("Ending fight via onplayerdied");
-    EndFight(victim,attacker); // IMPORTANT! r5r.dev
+    EndFight( victim, attacker, damageInfo ); // IMPORTANT! r5r.dev
 
-	} 
+	} else if ( Logging_Enabled() && IsValid(victim) && victim.IsPlayer() ){
+	EndFight( victim, attacker, damageInfo );
+	}
 			
 		
 	if (FlowState_RandomGunsEverydie() && FlowState_FIESTADeathboxes())
