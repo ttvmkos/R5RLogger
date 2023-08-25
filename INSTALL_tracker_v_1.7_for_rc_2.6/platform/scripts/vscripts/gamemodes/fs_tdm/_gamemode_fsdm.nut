@@ -482,7 +482,7 @@ bool function IsSpecialWeapon(string weaponSource) {
 
 
 void function HandleDamage(Fight fight, entity attacker, string weaponSource, float damageAmount, var damageInfo, entity victim) {
-    if (!IsValid(attacker) || !IsValid(victim) || !attacker.p.isConnected || !victim.p.isConnected ) return;
+    if (!attacker.p.isConnected || !victim.p.isConnected ) return;
 
     // which player?
     bool isAttacker = fight.attackers.find(attacker) != -1;
