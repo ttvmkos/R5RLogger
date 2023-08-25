@@ -397,8 +397,11 @@ void function EndFight(entity victim, entity attacker) {
             // entity attacker = completeFight.entity1;
             string team_of_killer = attacker.GetTeam().tostring();
             string team_of_killed = victim.GetTeam().tostring();
-
-            logString += format("\n^^,%s,1,%s,%d,%s,%s,%s,%i,%d,%s\n&&,%s,%d,%s,%d,%s,%s,%i,%d,%s\n",
+			float pingVictim = victim.GetLatency() * 1000 - 40;
+			float pingAttacker = attacker.GetLatency() * 1000 - 40;
+			int pA = pingAttacker.tointeger();
+			int pV = pingVictim.tointeger();
+            logString += format("\n^^,%s,1,%s,%d,%s,%s,%s,%i,%d,%s,%d,%d\n&&,%s,%d,%s,%d,%s,%s,%i,%d,%s,%d,%d,%s\n",
                 attacker.GetPlayerName(),
                 GetNumTeamsRemaining().tostring(),
                 GetUnixTimestamp(),
@@ -408,6 +411,8 @@ void function EndFight(entity victim, entity attacker) {
                 timeRemaining,
                 ongoingFight.fight.fightId,
 				attacker.p.AmIController.tostring(),
+				pA,
+				pV,
                 victim.GetPlayerName(),
                 placeM,
                 attacker.GetPlayerName(),
@@ -416,6 +421,9 @@ void function EndFight(entity victim, entity attacker) {
                 team_of_killed,
                 timeRemaining,
                 ongoingFight.fight.fightId,
+				attacker.p.AmIController.tostring(),
+				pV,
+				pA,
 				victim.p.AmIController.tostring()
             );
 
@@ -1092,7 +1100,7 @@ void function _OnPlayerConnected(entity player)
 	//Add connection by setting kill to 0 ; CONNECT LOG r5r.dev
 	if ( Logging_Enabled() && IsValid( player ) ) 
 	{	string pName = player.GetPlayerName();
-		Message(player, " ", "Match stats tracking by www.r5r.dev" , 15)
+		Message(player, " ", "\n\n\n\n Match stats tracking by www.r5r.dev \n\n\n\n" , 5)
 		int attempts = 0;
 		while ( !isLogging() && attempts < 22 ) 
 		{ 
@@ -3147,6 +3155,14 @@ void function SimpleChampionUI()
 										stopLogging(false);
 										} else {
 										stopLogging(Logging_ShipStats()); //IMPORTANT 
+											if (Logging_ShipStats()) 
+											{
+												foreach(player in GetPlayerArray())
+													{
+														if(!IsValid(player)) continue
+														Message(player, " ", "\n\n\n\n Match stats sent to tracker @ www.r5r.dev \n\n\n\n" , 4)
+													}
+											}
 										}
 									
 						}
@@ -3184,6 +3200,14 @@ void function SimpleChampionUI()
 										stopLogging(false);
 										} else {
 										stopLogging(Logging_ShipStats()); //IMPORTANT 
+											if (Logging_ShipStats()) 
+											{
+												foreach(player in GetPlayerArray())
+													{
+														if(!IsValid(player)) continue
+														Message(player, " ", "\n\n\n\n Match stats sent to tracker @ www.r5r.dev \n\n\n\n" , 4)
+													}
+											}
 										}
 									
 						}
@@ -3242,6 +3266,14 @@ void function SimpleChampionUI()
 					stopLogging(false); //shutdown logging and don't ship empty match stats
 					} else {
 					stopLogging(Logging_ShipStats()); //ship via bool true/false
+						if (Logging_ShipStats()) 
+						{
+							foreach(player in GetPlayerArray())
+								{
+									if(!IsValid(player)) continue
+									Message(player, " ", "\n\n\n\n Match stats sent to tracker @ www.r5r.dev \n\n\n\n" , 4)
+								}
+						}
 					}
 	}
 	// end ship 
