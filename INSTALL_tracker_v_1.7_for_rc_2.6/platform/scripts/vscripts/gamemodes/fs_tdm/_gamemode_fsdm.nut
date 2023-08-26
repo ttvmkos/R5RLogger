@@ -134,19 +134,22 @@ struct
     int mappicked = 0
 } FS_DM
 
-// ██████   █████  ███████ ███████     ███████ ██    ██ ███    ██  ██████ ████████ ██  ██████  ███    ██ ███████
-// ██   ██ ██   ██ ██      ██          ██      ██    ██ ████   ██ ██         ██    ██ ██    ██ ████   ██ ██
-// ██████  ███████ ███████ █████       █████   ██    ██ ██ ██  ██ ██         ██    ██ ██    ██ ██ ██  ██ ███████
-// ██   ██ ██   ██      ██ ██          ██      ██    ██ ██  ██ ██ ██         ██    ██ ██    ██ ██  ██ ██      ██
-// ██████  ██   ██ ███████ ███████     ██       ██████  ██   ████  ██████    ██    ██  ██████  ██   ████ ███████
+
+//██████  ███████ ██████     ██████  ███████ ██    ██     ████████ ██████   █████   ██████ ██   ██ ███████ ██████  
+//██   ██ ██      ██   ██    ██   ██ ██      ██    ██        ██    ██   ██ ██   ██ ██      ██  ██  ██      ██   ██ 
+//██████  ███████ ██████     ██   ██ █████   ██    ██        ██    ██████  ███████ ██      █████   █████   ██████  
+//██   ██      ██ ██   ██    ██   ██ ██       ██  ██         ██    ██   ██ ██   ██ ██      ██  ██  ██      ██   ██ 
+//██   ██ ███████ ██   ██ ██ ██████  ███████   ████          ██    ██   ██ ██   ██  ██████ ██   ██ ███████ ██   ██ 
+//r5r.dev by mkos
 
 
-// r5r.dev logging config
+
 // function to return current round to codecallbacks
 
 int function GetCurrentRound() {
     return file.currentRound;
 }
+
 
 //START KILL RECAP
 /*****************************************************************************************************************************/
@@ -219,7 +222,7 @@ DamageEvent function CreateDamageEvent(string weaponSource, float damage, string
 }
 
 
-void function EndFight(entity victim, entity attacker, var damageInfo) {
+void function EndFight(entity victim, entity attacker, var damageInfo, float deathtime) {
  // Standard check before accessing entity
 	
 	if (IsValid(victim) && victim.IsPlayer() && victim.p.isConnected && !attacker.IsPlayer()){
@@ -281,7 +284,10 @@ void function EndFight(entity victim, entity attacker, var damageInfo) {
             int totalHits = 0;
             int totalHeadshots = 0;
 
-            foreach (event in damageEvents) {
+            foreach (event in damageEvents) 
+			{
+				if (deathtime - event.actionTimestamp <= 30.0) 
+				{
                     totalDamage += event.damage;
                     totalHits += event.hitCount;
                     totalHeadshots += event.headshots;
@@ -304,7 +310,8 @@ void function EndFight(entity victim, entity attacker, var damageInfo) {
                         logString += format("Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s with weapon {%s} headshots: {%d};",
                                             event.damage, victimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
                     }
-                }
+				}
+            }
 
                 // summary
                 logString += "{" + currentAttacker + "} dealt:";
@@ -316,25 +323,29 @@ void function EndFight(entity victim, entity attacker, var damageInfo) {
 				int totalVictimHits = 0;
 				int totalVictimHeadshots = 0;
 
-				foreach (event in victimDamageEvents) {
-					totalVictimDamage += event.damage;
-					totalVictimHits += event.hitCount;
-					totalVictimHeadshots += event.headshots;
-					string relatedVictimName = completeFight.entity1.GetPlayerName();
-					string attackerName = event.attackerName;
-								string weaponSource = event.weaponSource;
-								int bulletsPerShot = GetBulletsPerShot(weaponSource);
-								string mul = event.hitCount > 1 ? "s" : "";
-								if (IsSpecialWeapon(weaponSource)) {
-									int totalBulletsFired = event.hitCount * bulletsPerShot;
-									logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon {%s} headshots: {%d};",
-														attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
-								} else {
-									logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s with weapon {%s} headshots: {%d};",
-														attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
-								}
+				foreach (event in victimDamageEvents) 
+				{
+					if (deathtime - event.actionTimestamp <= 30.0) 
+					{
+						totalVictimDamage += event.damage;
+						totalVictimHits += event.hitCount;
+						totalVictimHeadshots += event.headshots;
+						string relatedVictimName = completeFight.entity1.GetPlayerName();
+						string attackerName = event.attackerName;
+									string weaponSource = event.weaponSource;
+									int bulletsPerShot = GetBulletsPerShot(weaponSource);
+									string mul = event.hitCount > 1 ? "s" : "";
+									if (IsSpecialWeapon(weaponSource)) {
+										int totalBulletsFired = event.hitCount * bulletsPerShot;
+										logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon {%s} headshots: {%d};",
+															attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
+									} else {
+										logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s with weapon {%s} headshots: {%d};",
+															attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
+									}
 
-						//todo
+							//todo
+					}
 				}
 
 				// victim summary
@@ -355,26 +366,33 @@ void function EndFight(entity victim, entity attacker, var damageInfo) {
 							int totalRelatedHeadshots = 0;
 							array<DamageEvent> relatedDamageEvents = relatedFight.fight.damageEventsEntity1;
 							string relatedVictimName = victim.GetPlayerName();
-							foreach (DamageEvent event in relatedDamageEvents) {
-								totalRelatedDamage += event.damage;
-								totalRelatedHits += event.hitCount;
-								totalRelatedHeadshots += event.headshots;
-								string attackerName = event.attackerName;
-								string weaponSource = event.weaponSource;
-								int bulletsPerShot = GetBulletsPerShot(weaponSource);
-								string mul = event.hitCount > 1 ? "s" : "";
-								if (IsSpecialWeapon(weaponSource)) {
-									int totalBulletsFired = event.hitCount * bulletsPerShot;
-									logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon {%s} headshots: {%d};",
-														attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
-								} else {
-									logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s with weapon {%s} headshots: {%d};",
-														attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
+							foreach (DamageEvent event in relatedDamageEvents) 
+							{
+								if (deathtime - event.actionTimestamp <= 30.0) 
+								{
+									totalRelatedDamage += event.damage;
+									totalRelatedHits += event.hitCount;
+									totalRelatedHeadshots += event.headshots;
+									string attackerName = event.attackerName;
+									if ( attackerName == "172" ){
+									attackerName = "(ring)";
+									}
+									string weaponSource = event.weaponSource;
+									int bulletsPerShot = GetBulletsPerShot(weaponSource);
+									string mul = event.hitCount > 1 ? "s" : "";
+									if (IsSpecialWeapon(weaponSource)) {
+										int totalBulletsFired = event.hitCount * bulletsPerShot;
+										logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s {%d/%d} bullets with weapon {%s} headshots: {%d};",
+															attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, event.bulletsHit, totalBulletsFired, weaponSource, event.headshots);
+									} else {
+										logString += format("{%s} dealt:Entry: {%.2f} damage ON {%s} at time {%.2f} in {%d} hit%s with weapon {%s} headshots: {%d};",
+															attackerName, event.damage, relatedVictimName, event.actionTimestamp, event.hitCount, mul, weaponSource, event.headshots);
+									}
+									
+									logString += format("{%s} dealt:Recap: {%.2f} total damage in {%d} hits with weapon(s), headshots: {%d};",
+									attackerName, totalRelatedDamage, totalRelatedHits, totalRelatedHeadshots);
+									
 								}
-								
-								logString += format("{%s} dealt:Recap: {%.2f} total damage in {%d} hits with weapon(s), headshots: {%d};",
-								attackerName, totalRelatedDamage, totalRelatedHits, totalRelatedHeadshots);
-
 							}
 						}
 					}
@@ -470,6 +488,15 @@ void function EndFight(entity victim, entity attacker, var damageInfo) {
 			
 			//sqprint(format("Fight %d ended and removed", i) );
             ongoingFight.fight.fightEnded = true;
+			
+			float delay = 3.5;
+				if (GetCurrentPlaylistName() != "fs_1v1") {
+				delay = Deathmatch_GetRespawnDelay();
+				} else {
+				delay = .0001
+				}
+			
+			wait(delay); 
             ongoingFights.remove(i);
             return;
         }
@@ -693,6 +720,25 @@ void function OnPlayerDamaged(entity victim, var damageInfo)
 
 //END KILL RECAP
 /*****************************************************************************************************************************/
+
+
+
+
+
+
+
+
+
+
+
+// ██████   █████  ███████ ███████     ███████ ██    ██ ███    ██  ██████ ████████ ██  ██████  ███    ██ ███████
+// ██   ██ ██   ██ ██      ██          ██      ██    ██ ████   ██ ██         ██    ██ ██    ██ ████   ██ ██
+// ██████  ███████ ███████ █████       █████   ██    ██ ██ ██  ██ ██         ██    ██ ██    ██ ██ ██  ██ ███████
+// ██   ██ ██   ██      ██ ██          ██      ██    ██ ██  ██ ██ ██         ██    ██ ██    ██ ██  ██ ██      ██
+// ██████  ██   ██ ███████ ███████     ██       ██████  ██   ████  ██████    ██    ██  ██████  ██   ████ ███████
+
+
+
 
 
 void function _CustomTDM_Init()
@@ -1216,11 +1262,16 @@ void function _OnPlayerConnected(entity player)
 					timeRemaining = FlowState_RoundTime() - (Time() - totalDelay);
 				}
 				if (IsValid(player)) {
-					LogEvent(format("^^,%s,0,%s,%d,,,,%i\n",
+				
+					//string ctrl = player.p.AmIController.tostring();
+					
+					LogEvent(format("^^,%s,0,%s,%d,,,,%i,,,,,\n",
 					   pName,
 					   GetNumTeamsRemaining().tostring(),
 					   GetUnixTimestamp(),
-					   timeRemaining), 
+					   timeRemaining
+					  // ctrl
+					   ), 
 					false,
 					Logging_Encryption()
 					);
@@ -1406,12 +1457,14 @@ string function AnalyzeDamageInfo(var damageInfo) {
 
 void function _OnPlayerDied(entity victim, entity attacker, var damageInfo)
 {
+	float deathtime = Time();
+
 	if (Logging_Enabled() && IsValid(victim) && IsValid(attacker) && victim.IsPlayer() && attacker.IsPlayer() && victim != attacker) {
     // sqprint("Ending fight via onplayerdied");
-    EndFight( victim, attacker, damageInfo ); // IMPORTANT! r5r.dev
+    thread EndFight( victim, attacker, damageInfo, deathtime ); // IMPORTANT! r5r.dev
 
 	} else if ( Logging_Enabled() && IsValid(victim) && victim.IsPlayer() ){
-	EndFight( victim, attacker, damageInfo );
+	thread EndFight( victim, attacker, damageInfo, deathtime );
 	}
 			
 		
