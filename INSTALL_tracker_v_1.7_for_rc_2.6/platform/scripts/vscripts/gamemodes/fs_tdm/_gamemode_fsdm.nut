@@ -135,12 +135,12 @@ struct
 } FS_DM
 
 
-//██████  ███████ ██████     ██████  ███████ ██    ██     ████████ ██████   █████   ██████ ██   ██ ███████ ██████  
-//██   ██ ██      ██   ██    ██   ██ ██      ██    ██        ██    ██   ██ ██   ██ ██      ██  ██  ██      ██   ██ 
-//██████  ███████ ██████     ██   ██ █████   ██    ██        ██    ██████  ███████ ██      █████   █████   ██████  
-//██   ██      ██ ██   ██    ██   ██ ██       ██  ██         ██    ██   ██ ██   ██ ██      ██  ██  ██      ██   ██ 
-//██   ██ ███████ ██   ██ ██ ██████  ███████   ████          ██    ██   ██ ██   ██  ██████ ██   ██ ███████ ██   ██ 
-//r5r.dev by mkos
+// ██████  ███████ ██████     ██████  ███████ ██    ██     ████████ ██████   █████   ██████ ██   ██ ███████ ██████  
+// ██   ██ ██      ██   ██    ██   ██ ██      ██    ██        ██    ██   ██ ██   ██ ██      ██  ██  ██      ██   ██ 
+// ██████  ███████ ██████     ██   ██ █████   ██    ██        ██    ██████  ███████ ██      █████   █████   ██████  
+// ██   ██      ██ ██   ██    ██   ██ ██       ██  ██         ██    ██   ██ ██   ██ ██      ██  ██  ██      ██   ██ 
+// ██   ██ ███████ ██   ██ ██ ██████  ███████   ████          ██    ██   ██ ██   ██  ██████ ██   ██ ███████ ██   ██ 
+// r5r.dev by mkos
 
 
 
@@ -170,6 +170,7 @@ struct Fight {
     array<string> attackerNames
     array<entity> attackers
     entity victim
+	string victimName
     array<DamageEvent> damageEventsEntity1
     array<DamageEvent> damageEventsEntity2
     float totalDamageEntity1
@@ -189,6 +190,7 @@ struct OngoingFight {
 
 struct CompleteFight {
     array<string> attackerNames
+	string victimName
 	array<entity> attackers
     entity victim
     entity entity1
@@ -208,7 +210,7 @@ int function GetUniqueFightId() {
 }
 
 
-DamageEvent function CreateDamageEvent(string weaponSource, float damage, string attackerName) {
+DamageEvent function CreateDamageEvent( string weaponSource, float damage, string attackerName ) {
     DamageEvent event;
 	event.attackerName = attackerName;
     event.weaponSource = weaponSource;
@@ -258,6 +260,7 @@ void function EndFight(entity victim, entity attacker, var damageInfo, float dea
             CompleteFight completeFight;
 			completeFight.attackers = ongoingFight.fight.attackers;
 			completeFight.attackerNames = ongoingFight.fight.attackerNames;
+			completeFight.victimName = ongoingFight.fight.victimName;
             completeFight.entity1 = ongoingFight.fight.attackers[ongoingFight.fight.attackers.len() - 1];
             completeFight.entity2 = ongoingFight.fight.victim;
             completeFight.damageEventsEntity1 = ongoingFight.fight.damageEventsEntity1;
@@ -278,7 +281,7 @@ void function EndFight(entity victim, entity attacker, var damageInfo, float dea
             string currentAttacker = completeFight.attackerNames[e];
             array<DamageEvent> damageEvents = completeFight.damageEventsEntity1;
             entity victimEntity = completeFight.entity2;
-            string victimName = victimEntity.GetPlayerName();
+            string victimName = completeFight.victimName;
 
             float totalDamage = 0.0;
             int totalHits = 0;
@@ -695,12 +698,18 @@ void function OnPlayerDamaged(entity victim, var damageInfo)
 			}
 		}
 		
+		string victimName = "Unknown";
+		if (IsValid( victim )){
+		victimName = victim.GetPlayerName();
+		}
+		
 		if (!fightInProgress) {
 		// start a new fight if not
 		OngoingFight newOngoingFight;
 		newOngoingFight.fight.attackers = [attacker];
 		newOngoingFight.fight.attackerNames = [attackerName];
 		newOngoingFight.fight.victim = victim;
+		newOngoingFight.fight.victimName = victimName;
 		newOngoingFight.fight.damageEventsEntity1 = [];
 		newOngoingFight.fight.damageEventsEntity2 = [];
 		newOngoingFight.fight.totalDamageEntity1 = 0;
