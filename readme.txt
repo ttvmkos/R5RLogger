@@ -21,7 +21,7 @@ ____8_888888888888_`8888888P'_________`8888888P'________`8888888P'____8_88888888
 					#########################
 					#	R5R LOGGER	#
 					#########################
-					#	Version 1.7	#
+					#	Version 1.8	#
 					#	By R5mkos	#
 					#	https://r5r.dev	#	
 					#	INDEV RELEASE	#
@@ -118,7 +118,7 @@ Located in
 #	GAMEMODES	#
 #########################
 
-Currently 1.7 logger is only set up for 
+Currently 1.8 logger is only set up for 
 
 1V1
 FS_DM
