@@ -33,7 +33,7 @@ ____8_888888888888_`8888888P'_________`8888888P'________`8888888P'____8_88888888
 #################################################################
 
 
-Version 1.7 only works with the latest SDK as of August 21, 2023
+Version 1.8 only works with the latest SDK as of August 21, 2023
 version rc2.2.6
 
 
