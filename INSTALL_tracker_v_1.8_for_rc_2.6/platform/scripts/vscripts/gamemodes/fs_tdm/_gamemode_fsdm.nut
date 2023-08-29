@@ -7,7 +7,7 @@
 // Zer0Bytes#4428 -- Weapons randomizer rewrite
 // makimakima#5561 -- TDM Saved Weapon List, 1v1 gamemode
 // michae\l/#1125 -- flowstate admin
-// everyone else -- advice
+// everyone else -- advice 
 
 global function _CustomTDM_Init
 global function _RegisterLocation
@@ -205,7 +205,13 @@ DamageEvent function CreateDamageEvent( string weaponSource, float damage, strin
 		if ( attacker.IsPlayer() && !IsValid(attacker) ){ 
 			return; }
 
-		string logString = "|#Fight Recap:{" + GetUnixTimestamp() + "}| Victim: {" + victim.GetPlayerName() + "};";
+		//Increment fightid
+		GetUniqueFightId();
+		// to identify each death/kill as the same fight
+		int id = fightIdCounter;
+
+		string logString = "|#Fight Recap:{" + GetUnixTimestamp() + "}| Fight ID:{" + id + "}| Victim: {" + victim.GetPlayerName() + "};";
+
 
 	// initialize vars..
 	float totalDamageToVictim = 0.0;
@@ -232,7 +238,12 @@ DamageEvent function CreateDamageEvent( string weaponSource, float damage, strin
 			relevantDamageEvents.append(event);
 		}
 	}
-
+	
+	// set should ship to true
+	if ( totalDamageToVictim >= 100 ){
+	SHOULD_SHIP = true;
+	}
+	
 	// needs updated to playlist bool for max health
 	if (totalDamageToVictim < 200.0) {
 		timeWindow = 20.0;  
@@ -369,9 +380,6 @@ DamageEvent function CreateDamageEvent( string weaponSource, float damage, strin
     }
 
     allDamageEvents = remainingDamageEvents;
-
-	// to identify each death/kill as the same fight
-    GetUniqueFightId();
 			
 
 			
@@ -438,7 +446,7 @@ DamageEvent function CreateDamageEvent( string weaponSource, float damage, strin
                 team_of_killer,
                 team_of_killed,
                 timeRemaining,
-                fightIdCounter,
+                id,
 				aController,
 				pA,
 				pV,
@@ -449,7 +457,7 @@ DamageEvent function CreateDamageEvent( string weaponSource, float damage, strin
                 team_of_killer,
                 team_of_killed,
                 timeRemaining,
-                fightIdCounter,
+                id,
 				aController,
 				pV,
 				pA,
